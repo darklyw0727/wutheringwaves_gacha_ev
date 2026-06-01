@@ -190,6 +190,32 @@
     /* Coral settings */
     .coral-opts { display: flex; flex-direction: column; gap: 12px; }
 
+    /* Bulk-set row */
+    .bulk-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .bulk-row select {
+      width: auto;
+      min-width: 90px;
+      font-size: 0.8rem;
+      padding: 5px 8px;
+    }
+    .bulk-btn {
+      padding: 5px 14px;
+      background: #0d1e33;
+      border: 1px solid #2a5070;
+      border-radius: 6px;
+      color: #4fc3f7;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .bulk-btn:hover { background: #102540; border-color: #4fc3f7; }
+
     .priority-group {
       display: flex;
       flex-direction: column;
@@ -262,22 +288,6 @@
     .result-hero .big { font-size: 3.2rem; font-weight: 700; color: #ffd54f; line-height: 1; }
     .result-hero .unit { font-size: 0.9rem; color: #7a92b0; margin-top: 6px; }
 
-    .percentile-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin: 0 0 18px;
-    }
-    .pct-card {
-      background: #090f1c;
-      border: 1px solid #1c2d46;
-      border-radius: 8px;
-      padding: 14px;
-      text-align: center;
-    }
-    .pct-card .pct-label { font-size: 0.78rem; color: #5a7090; margin-bottom: 4px; }
-    .pct-card .pct-val { font-size: 1.6rem; font-weight: 700; color: #4fc3f7; }
-    .pct-card .pct-unit { font-size: 0.75rem; color: #5a7090; }
 
     .coral-table {
       background: #090f1c;
@@ -298,6 +308,31 @@
     .coral-lbl { color: #7a92b0; }
     .coral-val { color: #ffd54f; font-weight: 600; }
     .coral-val.total-val { color: #ff9800; font-size: 0.95rem; }
+
+    .pct-table {
+      background: #090f1c;
+      border: 1px solid #1c2d46;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    .pct-row {
+      display: grid;
+      grid-template-columns: 40px 1fr 72px;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-bottom: 1px solid #111c2e;
+      font-size: 0.85rem;
+    }
+    .pct-row:last-child { border-bottom: none; }
+    .pct-row.pct-mid { background: #0d1827; }
+    .pct-pct { color: #7a92b0; text-align: right; font-size: 0.8rem; }
+    .pct-bar-wrap { background: #0e1a2a; border-radius: 4px; height: 8px; overflow: hidden; }
+    .pct-bar { height: 100%; background: linear-gradient(90deg, #1565a0, #4fc3f7); border-radius: 4px; }
+    .pct-row.pct-mid .pct-bar { background: linear-gradient(90deg, #c17900, #ffd54f); }
+    .pct-pulls { color: #ffd54f; font-weight: 600; text-align: right; }
+    .pct-row.pct-mid .pct-pulls { color: #ffb300; font-size: 0.95rem; }
 
     .result-note {
       font-size: 0.75rem;
@@ -370,6 +405,10 @@
     <h2>常駐角色狀態</h2>
 
     <h3>5 星常駐角色</h3>
+    <div class="bulk-row">
+      <select id="bulk5-chains"></select>
+      <button class="bulk-btn" id="bulk5-btn">套用至全部 5 星角色</button>
+    </div>
     <div class="char-grid" id="std5-grid"></div>
 
     <hr class="sep">
@@ -383,6 +422,10 @@
     <hr class="sep">
 
     <h3>4 星常駐角色鏈數</h3>
+    <div class="bulk-row">
+      <select id="bulk4-chains"></select>
+      <button class="bulk-btn" id="bulk4-btn">套用至全部 4 星角色</button>
+    </div>
     <div class="char-grid" id="std4-grid"></div>
   </div>
 
@@ -524,6 +567,28 @@ function updateTargetOpts() {
 }
 currentChainsEl.addEventListener('change', updateTargetOpts);
 updateTargetOpts();
+
+// ── 批次設定常駐角色鏈數 ──────────────────────────────────
+function buildBulkSelect(id) {
+  const sel = document.getElementById(id);
+  CHAINS_OPTS.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.label;
+    sel.appendChild(opt);
+  });
+}
+buildBulkSelect('bulk5-chains');
+buildBulkSelect('bulk4-chains');
+
+document.getElementById('bulk5-btn').addEventListener('click', () => {
+  const val = document.getElementById('bulk5-chains').value;
+  STD_5STAR.forEach((_, i) => { document.getElementById(`std5-${i}`).value = val; });
+});
+document.getElementById('bulk4-btn').addEventListener('click', () => {
+  const val = document.getElementById('bulk4-chains').value;
+  STD_4STAR.forEach((_, i) => { document.getElementById(`std4-${i}`).value = val; });
+});
 
 // ── 模擬引擎 ──────────────────────────────────────────────
 function coralFor5Star(copies) {
@@ -681,12 +746,15 @@ function runSim(params, iters = 100000) {
   }
 
   arr.sort();
+  const pcts = {};
+  for (let p = 10; p <= 90; p += 10) {
+    pcts[`p${p}`] = arr[Math.floor(iters * p / 100)];
+  }
   return {
     avg:   sumPulls     / iters,
     avgEchoCorals: sumEchoes    / iters,
     avgPullCorals: sumPullCoral / iters,
-    p50:   arr[Math.floor(iters * 0.50)],
-    p90:   arr[Math.floor(iters * 0.90)],
+    ...pcts,
   };
 }
 
@@ -769,17 +837,13 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
         <div class="big">${Math.round(res.avg)}</div>
         <div class="unit">預期總抽數（含珊瑚兌換所得的抽數）</div>
       </div>
-      <div class="percentile-row">
-        <div class="pct-card">
-          <div class="pct-label">50% 機率達成</div>
-          <div class="pct-val">${res.p50}</div>
-          <div class="pct-unit">抽以內</div>
-        </div>
-        <div class="pct-card">
-          <div class="pct-label">90% 機率達成</div>
-          <div class="pct-val">${res.p90}</div>
-          <div class="pct-unit">抽以內</div>
-        </div>
+      <div class="pct-table">
+        ${[10,20,30,40,50,60,70,80,90].map(p => `
+        <div class="pct-row${p === 50 ? ' pct-mid' : ''}">
+          <span class="pct-pct">${p}%</span>
+          <div class="pct-bar-wrap"><div class="pct-bar" style="width:${p}%"></div></div>
+          <span class="pct-pulls">${res[`p${p}`]} 抽</span>
+        </div>`).join('')}
       </div>
       <h3>餘波珊瑚使用量（期望值）</h3>
       <div class="coral-table">
