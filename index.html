@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鳴潮角色喚取期望值計算機</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #080d18;
+      color: #c8d4e8;
+      font-family: 'Microsoft YaHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 920px; margin: 0 auto; }
+
+    /* Header */
+    .page-header {
+      text-align: center;
+      margin-bottom: 28px;
+      padding: 24px 0 20px;
+      border-bottom: 1px solid #1c2d46;
+    }
+    .page-header h1 {
+      font-size: 1.75rem;
+      color: #ffd54f;
+      text-shadow: 0 0 24px rgba(255, 213, 79, 0.25);
+      letter-spacing: 0.05em;
+    }
+    .page-header p {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: #5a7090;
+    }
+
+    /* Cards */
+    .card {
+      background: #0e1523;
+      border: 1px solid #1c2d46;
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin-bottom: 18px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      color: #4fc3f7;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #1c2d46;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: #4fc3f7;
+      border-radius: 2px;
+    }
+    .card h3 {
+      font-size: 0.875rem;
+      color: #7aa8c4;
+      margin: 18px 0 10px;
+    }
+    .card h3:first-child { margin-top: 0; }
+
+    /* Form grid */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 20px;
+    }
+    @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group > label {
+      font-size: 0.8rem;
+      color: #7a92b0;
+    }
+
+    select, input[type="number"] {
+      background: #080d18;
+      border: 1px solid #243650;
+      border-radius: 6px;
+      color: #c8d4e8;
+      padding: 8px 10px;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    select:focus, input[type="number"]:focus { border-color: #4fc3f7; }
+    select option { background: #0e1523; }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #9ab8d0;
+      cursor: pointer;
+      user-select: none;
+      margin-top: 4px;
+    }
+    .checkbox-label input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: #4fc3f7;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Section divider */
+    .sep {
+      border: none;
+      border-top: 1px solid #1c2d46;
+      margin: 18px 0 0;
+    }
+
+    /* Character grid */
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .char-card {
+      background: #090f1c;
+      border: 1px solid #1c2d46;
+      border-radius: 8px;
+      padding: 10px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .char-name {
+      font-size: 0.82rem;
+      color: #b0c8e0;
+      text-align: center;
+    }
+    .char-card select {
+      font-size: 0.78rem;
+      padding: 4px 6px;
+    }
+
+    /* 4-star UP selector */
+    .up4-hint {
+      font-size: 0.78rem;
+      color: #5a7090;
+      margin-bottom: 10px;
+    }
+    .up4-counter {
+      display: inline-block;
+      font-size: 0.8rem;
+      color: #8b9dc3;
+      margin-bottom: 8px;
+    }
+    .up4-counter .cnt { color: #ffd54f; font-weight: bold; }
+    .up4-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 7px;
+    }
+    .up4-item {
+      background: #090f1c;
+      border: 1px solid #1c2d46;
+      border-radius: 6px;
+      padding: 8px 6px;
+      font-size: 0.8rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      color: #8b9dc3;
+      user-select: none;
+    }
+    .up4-item:hover:not(.up4-disabled) { border-color: #4fc3f7; color: #c8d4e8; }
+    .up4-item.up4-selected {
+      border-color: #ffd54f;
+      background: #1a1c09;
+      color: #ffd54f;
+    }
+    .up4-item.up4-disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* Coral settings */
+    .coral-opts { display: flex; flex-direction: column; gap: 12px; }
+
+    .priority-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      background: #090f1c;
+      border: 1px solid #1c2d46;
+      border-radius: 8px;
+      margin-top: 4px;
+      transition: opacity 0.2s;
+    }
+    .priority-group.disabled { opacity: 0.35; pointer-events: none; }
+    .priority-group > .priority-label {
+      font-size: 0.78rem;
+      color: #5a7090;
+      margin-bottom: 2px;
+    }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #9ab8d0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .radio-label input[type="radio"] {
+      accent-color: #4fc3f7;
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Calculate button */
+    #calculate-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0f2d4a 0%, #0a1e33 100%);
+      border: 1px solid #2a6090;
+      border-radius: 10px;
+      color: #4fc3f7;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 18px;
+    }
+    #calculate-btn:hover:not(:disabled) {
+      border-color: #4fc3f7;
+      box-shadow: 0 0 18px rgba(79, 195, 247, 0.15);
+    }
+    #calculate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Error message */
+    .error-msg {
+      color: #f87171;
+      font-size: 0.82rem;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+
+    /* Results */
+    #results { display: none; }
+    .result-hero {
+      text-align: center;
+      padding: 16px 0 20px;
+    }
+    .result-hero .big { font-size: 3.2rem; font-weight: 700; color: #ffd54f; line-height: 1; }
+    .result-hero .unit { font-size: 0.9rem; color: #7a92b0; margin-top: 6px; }
+
+    .percentile-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 0 0 18px;
+    }
+    .pct-card {
+      background: #090f1c;
+      border: 1px solid #1c2d46;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .pct-card .pct-label { font-size: 0.78rem; color: #5a7090; margin-bottom: 4px; }
+    .pct-card .pct-val { font-size: 1.6rem; font-weight: 700; color: #4fc3f7; }
+    .pct-card .pct-unit { font-size: 0.75rem; color: #5a7090; }
+
+    .coral-table {
+      background: #090f1c;
+      border: 1px solid #1c2d46;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .coral-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 16px;
+      border-bottom: 1px solid #111c2e;
+      font-size: 0.85rem;
+    }
+    .coral-row:last-child { border-bottom: none; }
+    .coral-row.total { background: #0d1827; }
+    .coral-lbl { color: #7a92b0; }
+    .coral-val { color: #ffd54f; font-weight: 600; }
+    .coral-val.total-val { color: #ff9800; font-size: 0.95rem; }
+
+    .result-note {
+      font-size: 0.75rem;
+      color: #3d5470;
+      text-align: center;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="page-header">
+    <h1>鳴潮角色喚取期望值計算機</h1>
+    <p>使用 Monte Carlo 模擬（100,000 次）計算達成目標鏈數所需的期望抽數</p>
+  </div>
+
+  <!-- 目標設定 -->
+  <div class="card">
+    <h2>目標設定</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>UP 角色當前鏈數</label>
+        <select id="current-chains">
+          <option value="-1">未擁有</option>
+          <option value="0">0 鏈</option>
+          <option value="1">1 鏈</option>
+          <option value="2">2 鏈</option>
+          <option value="3">3 鏈</option>
+          <option value="4">4 鏈</option>
+          <option value="5">5 鏈</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>目標鏈數</label>
+        <select id="target-chains"></select>
+      </div>
+      <div class="form-group">
+        <label>5 星保底進度（已累積抽數，0–79）</label>
+        <input type="number" id="pity5" min="0" max="79" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="guaranteed5up">
+          下一個 5 星保底為 UP 角色
+        </label>
+      </div>
+      <div class="form-group">
+        <label>4 星保底進度（已累積抽數，0–9）</label>
+        <input type="number" id="pity4" min="0" max="9" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="guaranteed4up">
+          下一個 4 星保底為 UP 角色
+        </label>
+      </div>
+      <div class="form-group">
+        <label>當前持有的餘波珊瑚數量</label>
+        <input type="number" id="initial-corals" min="0" value="0" placeholder="0">
+      </div>
+    </div>
+    <div class="error-msg" id="target-error"></div>
+  </div>
+
+  <!-- 常駐角色狀態 -->
+  <div class="card">
+    <h2>常駐角色狀態</h2>
+
+    <h3>5 星常駐角色</h3>
+    <div class="char-grid" id="std5-grid"></div>
+
+    <hr class="sep">
+
+    <h3>本期 4 星 UP 角色（請選 3 名）</h3>
+    <p class="up4-hint">所選角色將作為 4 星 UP 池內容，未選角色視為非 UP 常駐。</p>
+    <div class="up4-counter">已選 <span class="cnt" id="up4-count">0</span> / 3 名</div>
+    <div class="up4-grid" id="up4-grid"></div>
+    <div class="error-msg" id="up4-error"></div>
+
+    <hr class="sep">
+
+    <h3>4 星常駐角色鏈數</h3>
+    <div class="char-grid" id="std4-grid"></div>
+  </div>
+
+  <!-- 珊瑚使用設定 -->
+  <div class="card">
+    <h2>珊瑚使用設定</h2>
+    <div class="coral-opts">
+      <label class="checkbox-label">
+        <input type="checkbox" id="auto-echo">
+        自動兌換 5 星 UP 角色回音頻段（每次 360 珊瑚，最多兌換 2 次，需已擁有角色本體）
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="auto-pulls">
+        自動兌換浮金波紋進行抽取（每 8 珊瑚兌換 1 抽）
+      </label>
+      <div class="priority-group disabled" id="priority-group">
+        <span class="priority-label">同時啟用兩項時，珊瑚使用優先順序：</span>
+        <label class="radio-label">
+          <input type="radio" name="coral-priority" value="echo" checked>
+          優先兌換回音頻段（先累積至 360 再換）
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="coral-priority" value="pull">
+          優先兌換浮金波紋（超過 8 珊瑚即換抽）
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <button id="calculate-btn">開始計算</button>
+
+  <!-- 結果 -->
+  <div class="card" id="results">
+    <h2>計算結果</h2>
+    <div id="results-content"></div>
+    <p class="result-note">以上數值為 100,000 次模擬的期望值，實際結果因隨機性而異。</p>
+  </div>
+
+</div>
+<script>
+// ── 常數資料 ───────────────────────────────────────────────
+const STD_5STAR = ['維里奈', '安可', '卡卡羅', '凌陽', '鑒心'];
+const STD_4STAR = ['秧秧', '熾霞', '白芷', '丹瑾', '散華', '桃祈', '莫特斐', '秋水', '淵武', '燈燈', '釉瑚', '卜靈'];
+const CHAINS_OPTS = [
+  { value: '-1', label: '未擁有' },
+  ...[0,1,2,3,4,5,6].map(c => ({ value: String(c), label: `${c} 鏈` }))
+];
+
+// ── 建立 UI ────────────────────────────────────────────────
+function buildChainsSelect(id) {
+  const sel = document.createElement('select');
+  sel.id = id;
+  CHAINS_OPTS.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.label;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+// 5 星常駐
+const std5Grid = document.getElementById('std5-grid');
+STD_5STAR.forEach((name, i) => {
+  const card = document.createElement('div');
+  card.className = 'char-card';
+  const nameEl = document.createElement('div');
+  nameEl.className = 'char-name';
+  nameEl.textContent = name;
+  card.appendChild(nameEl);
+  card.appendChild(buildChainsSelect(`std5-${i}`));
+  std5Grid.appendChild(card);
+});
+
+// 4 星 UP 選擇
+const up4Selected = new Set();
+const up4Grid = document.getElementById('up4-grid');
+const up4CountEl = document.getElementById('up4-count');
+
+STD_4STAR.forEach((name, i) => {
+  const item = document.createElement('div');
+  item.className = 'up4-item';
+  item.textContent = name;
+  item.dataset.idx = i;
+  item.addEventListener('click', () => {
+    if (item.classList.contains('up4-disabled')) return;
+    if (up4Selected.has(i)) {
+      up4Selected.delete(i);
+      item.classList.remove('up4-selected');
+    } else if (up4Selected.size < 3) {
+      up4Selected.add(i);
+      item.classList.add('up4-selected');
+    }
+    up4CountEl.textContent = up4Selected.size;
+    up4Grid.querySelectorAll('.up4-item').forEach(el => {
+      const idx = parseInt(el.dataset.idx);
+      if (!up4Selected.has(idx) && up4Selected.size >= 3) {
+        el.classList.add('up4-disabled');
+      } else {
+        el.classList.remove('up4-disabled');
+      }
+    });
+    document.getElementById('up4-error').textContent = '';
+  });
+  up4Grid.appendChild(item);
+});
+
+// 4 星常駐
+const std4Grid = document.getElementById('std4-grid');
+STD_4STAR.forEach((name, i) => {
+  const card = document.createElement('div');
+  card.className = 'char-card';
+  const nameEl = document.createElement('div');
+  nameEl.className = 'char-name';
+  nameEl.textContent = name;
+  card.appendChild(nameEl);
+  card.appendChild(buildChainsSelect(`std4-${i}`));
+  std4Grid.appendChild(card);
+});
+
+// ── 目標鏈數選項（隨起始鏈數動態更新）────────────────────
+const currentChainsEl = document.getElementById('current-chains');
+const targetChainsEl  = document.getElementById('target-chains');
+
+function updateTargetOpts() {
+  const cur = parseInt(currentChainsEl.value); // -1 ~ 5
+  const minTarget = cur + 1; // 0 ~ 6
+  const prevVal = parseInt(targetChainsEl.value);
+  targetChainsEl.innerHTML = '';
+  for (let c = Math.max(0, minTarget); c <= 6; c++) {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = `${c} 鏈`;
+    targetChainsEl.appendChild(opt);
+  }
+  if (!isNaN(prevVal) && prevVal >= Math.max(0, minTarget)) {
+    targetChainsEl.value = prevVal;
+  }
+}
+currentChainsEl.addEventListener('change', updateTargetOpts);
+updateTargetOpts();
+
+// ── 模擬引擎 ──────────────────────────────────────────────
+function coralFor5Star(copies) {
+  // copies = 此角色此前已有的拷貝數（本次是第 copies+1 次）
+  return copies < 7 ? 15 : 40;
+}
+function coralFor4StarChar(copies) {
+  return copies < 7 ? 3 : 8;
+}
+
+function simulate(p) {
+  let pity5 = p.pity5;
+  let pity4 = p.pity4;
+  let g5up  = p.guaranteed5UP;
+  let g4up  = p.guaranteed4UP;
+
+  let upCopies   = p.startingUPCopies; // 0=未擁有, 1=0鏈 …
+  let shopEchoes = 0;
+  let corals     = p.initialCorals;
+
+  let coralForEchoes = 0;
+  let coralForPulls  = 0;
+  let totalPulls     = 0;
+
+  const std5 = [...p.std5Copies];
+  const std4 = [...p.std4Copies];
+  const up4Idx    = p.up4StarIndices;        // 3 個在 UP 池的 std4 index
+  const nonUp4Idx = STD_4STAR               // 9 個非 UP 常駐 index
+    .map((_, i) => i)
+    .filter(i => !up4Idx.includes(i));
+
+  const targetChains = p.targetChains;
+  const autoEcho     = p.autoUseEchoes;
+  const autoPull     = p.autoUsePulls;
+
+  function isDone() {
+    return upCopies >= 1 && (upCopies - 1 + shopEchoes) >= targetChains;
+  }
+
+  const echoFirst = p.coralPriority === 'echo';
+
+  function buyEchoes() {
+    if (!autoEcho || upCopies < 1 || shopEchoes >= 2) return;
+    while (corals >= 360 && shopEchoes < 2) {
+      corals         -= 360;
+      coralForEchoes += 360;
+      shopEchoes++;
+    }
+  }
+
+  function buyOnePull() {
+    if (!autoPull || corals < 8 || isDone()) return false;
+    corals        -= 8;
+    coralForPulls += 8;
+    pull();
+    return true;
+  }
+
+  function pull() {
+    const r1 = Math.random();
+    let rarity;
+    if (pity5 >= 79) {
+      rarity = 5;
+    } else if (pity4 >= 9) {
+      rarity = r1 < 0.008 ? 5 : 4;
+    } else {
+      if      (r1 < 0.008) rarity = 5;
+      else if (r1 < 0.068) rarity = 4;
+      else                 rarity = 3;
+    }
+
+    if      (rarity === 5) { pity5 = 0; pity4 = 0; }
+    else if (rarity === 4) { pity5++;   pity4 = 0; }
+    else                   { pity5++;   pity4++;   }
+
+    if (rarity === 5) {
+      let isUP;
+      if (g5up) { isUP = true; g5up = false; }
+      else       { isUP = Math.random() < 0.5; if (!isUP) g5up = true; }
+
+      if (isUP) {
+        corals += coralFor5Star(upCopies);
+        upCopies++;
+      } else {
+        const ci = Math.floor(Math.random() * 5);
+        corals += coralFor5Star(std5[ci]) + 30; // +30 非UP額外
+        std5[ci]++;
+      }
+
+    } else if (rarity === 4) {
+      let isUP4;
+      if (g4up) { isUP4 = true; g4up = false; }
+      else       { isUP4 = Math.random() < 0.5; if (!isUP4) g4up = true; }
+
+      if (isUP4) {
+        const ci = up4Idx[Math.floor(Math.random() * up4Idx.length)];
+        corals += coralFor4StarChar(std4[ci]);
+        std4[ci]++;
+      } else {
+        // 29 個非 UP 內容：9 常駐角色 + 20 武器
+        const roll = Math.floor(Math.random() * 29);
+        if (roll < 9) {
+          const ci = nonUp4Idx[roll];
+          corals += coralFor4StarChar(std4[ci]);
+          std4[ci]++;
+        } else {
+          corals += 3; // 4 星武器
+        }
+      }
+    }
+    // 3 星武器：產生殘振珊瑚（不同幣種），不計入
+  }
+
+  // 應用所有可行動作，依優先順序循環直到無法繼續
+  function applyActions() {
+    let changed = true;
+    while (changed && !isDone()) {
+      changed = false;
+      if (echoFirst) {
+        buyEchoes();
+        if (isDone()) break;
+        if (buyOnePull()) { totalPulls++; changed = true; }
+      } else {
+        // 優先換抽：有 8 珊瑚就換，換完再試回音
+        if (buyOnePull()) { totalPulls++; changed = true; }
+        buyEchoes();
+      }
+    }
+  }
+
+  // 初始珊瑚動作
+  applyActions();
+  if (isDone()) return { pulls: 0, coralForEchoes, coralForPulls };
+
+  const MAX = 30000;
+  while (!isDone() && totalPulls < MAX) {
+    pull();
+    totalPulls++;
+    applyActions();
+  }
+
+  return { pulls: totalPulls, coralForEchoes, coralForPulls };
+}
+
+function runSim(params, iters = 100000) {
+  let sumPulls = 0, sumEchoes = 0, sumPullCoral = 0;
+  const arr = new Int32Array(iters);
+
+  for (let i = 0; i < iters; i++) {
+    const r   = simulate(params);
+    sumPulls      += r.pulls;
+    sumEchoes     += r.coralForEchoes;
+    sumPullCoral  += r.coralForPulls;
+    arr[i]         = r.pulls;
+  }
+
+  arr.sort();
+  return {
+    avg:   sumPulls     / iters,
+    avgEchoCorals: sumEchoes    / iters,
+    avgPullCorals: sumPullCoral / iters,
+    p50:   arr[Math.floor(iters * 0.50)],
+    p90:   arr[Math.floor(iters * 0.90)],
+  };
+}
+
+// ── 優先順序顯示控制 ──────────────────────────────────────
+const autoEchoEl  = document.getElementById('auto-echo');
+const autoPullEl  = document.getElementById('auto-pulls');
+const priorityGrp = document.getElementById('priority-group');
+
+function updatePriorityGroup() {
+  const both = autoEchoEl.checked && autoPullEl.checked;
+  priorityGrp.classList.toggle('disabled', !both);
+}
+autoEchoEl.addEventListener('change', updatePriorityGroup);
+autoPullEl.addEventListener('change', updatePriorityGroup);
+
+// ── 計算按鈕 ──────────────────────────────────────────────
+document.getElementById('calculate-btn').addEventListener('click', () => {
+  // 驗證
+  let valid = true;
+  document.getElementById('up4-error').textContent    = '';
+  document.getElementById('target-error').textContent = '';
+
+  if (up4Selected.size !== 3) {
+    document.getElementById('up4-error').textContent = '請選擇恰好 3 名本期 4 星 UP 角色。';
+    valid = false;
+  }
+
+  const currentChains = parseInt(currentChainsEl.value);
+  const targetChains  = parseInt(targetChainsEl.value);
+  if (isNaN(targetChains) || targetChains <= currentChains) {
+    document.getElementById('target-error').textContent = '目標鏈數必須高於當前鏈數。';
+    valid = false;
+  }
+
+  if (!valid) return;
+
+  const pity5   = Math.min(79, Math.max(0, parseInt(document.getElementById('pity5').value)   || 0));
+  const pity4   = Math.min( 9, Math.max(0, parseInt(document.getElementById('pity4').value)   || 0));
+  const initCor = Math.max(0, parseInt(document.getElementById('initial-corals').value) || 0);
+
+  const std5Copies = STD_5STAR.map((_, i) => {
+    const v = parseInt(document.getElementById(`std5-${i}`).value);
+    return v + 1; // -1(未擁有)→0, 0鏈→1, …
+  });
+  const std4Copies = STD_4STAR.map((_, i) => {
+    const v = parseInt(document.getElementById(`std4-${i}`).value);
+    return v + 1;
+  });
+
+  const params = {
+    pity5,
+    pity4,
+    guaranteed5UP:    document.getElementById('guaranteed5up').checked,
+    guaranteed4UP:    document.getElementById('guaranteed4up').checked,
+    startingUPCopies: currentChains + 1, // -1→0, 0鏈→1, …
+    targetChains,
+    initialCorals:    initCor,
+    autoUseEchoes:    autoEchoEl.checked,
+    autoUsePulls:     autoPullEl.checked,
+    coralPriority:    document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
+    std5Copies,
+    std4Copies,
+    up4StarIndices:   [...up4Selected],
+  };
+
+  const btn = document.getElementById('calculate-btn');
+  btn.textContent = '計算中…';
+  btn.disabled = true;
+  document.getElementById('results').style.display = 'none';
+
+  setTimeout(() => {
+    const res = runSim(params, 100000);
+
+    const avgEchoTimes = Math.round(res.avgEchoCorals / 360);
+    const avgPullBuys  = Math.round(res.avgPullCorals  /   8);
+    const totalCoralAvg = Math.round(res.avgEchoCorals + res.avgPullCorals);
+
+    document.getElementById('results-content').innerHTML = `
+      <div class="result-hero">
+        <div class="big">${Math.round(res.avg)}</div>
+        <div class="unit">預期總抽數（含珊瑚兌換所得的抽數）</div>
+      </div>
+      <div class="percentile-row">
+        <div class="pct-card">
+          <div class="pct-label">50% 機率達成</div>
+          <div class="pct-val">${res.p50}</div>
+          <div class="pct-unit">抽以內</div>
+        </div>
+        <div class="pct-card">
+          <div class="pct-label">90% 機率達成</div>
+          <div class="pct-val">${res.p90}</div>
+          <div class="pct-unit">抽以內</div>
+        </div>
+      </div>
+      <h3>餘波珊瑚使用量（期望值）</h3>
+      <div class="coral-table">
+        <div class="coral-row">
+          <span class="coral-lbl">兌換 5 星 UP 回音頻段</span>
+          <span class="coral-val">${Math.round(res.avgEchoCorals)} 個（約 ${avgEchoTimes} 次）</span>
+        </div>
+        <div class="coral-row">
+          <span class="coral-lbl">兌換浮金波紋</span>
+          <span class="coral-val">${Math.round(res.avgPullCorals)} 個（約 ${avgPullBuys} 抽）</span>
+        </div>
+        <div class="coral-row total">
+          <span class="coral-lbl">合計使用</span>
+          <span class="coral-val total-val">${totalCoralAvg} 個</span>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('results').style.display = 'block';
+    btn.textContent = '重新計算';
+    btn.disabled = false;
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 30);
+});
+</script>
+</body>
+</html>
