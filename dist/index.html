@@ -392,6 +392,25 @@
     <p>5星角色中獎機率提升時會同步降低4星與3星內容的獲取機率，例如當5星中獎機率提升8%時，4星羽3星內容的獲取機率都會下降4%</p>
   </div>
 
+  <!-- 初始設定 -->
+  <div class="card">
+    <h2>初始設定</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>當前持有的星聲數量</label>
+        <input type="number" id="initial-astrites" min="0" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>當前持有的浮金波紋數量</label>
+        <input type="number" id="initial-lustrous-tides" min="0" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>當前持有的餘波珊瑚數量</label>
+        <input type="number" id="initial-corals" min="0" value="0" placeholder="0">
+      </div>
+    </div>
+  </div>
+
   <!-- 目標設定 -->
   <div class="card">
     <h2>目標設定</h2>
@@ -433,10 +452,6 @@
           <input type="checkbox" id="guaranteed4up">
           下一個 4 星保底為 UP 角色
         </label>
-      </div>
-      <div class="form-group">
-        <label>當前持有的餘波珊瑚數量</label>
-        <input type="number" id="initial-corals" min="0" value="0" placeholder="0">
       </div>
     </div>
     <div class="error-msg" id="target-error"></div>
@@ -849,9 +864,12 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
 
   if (!valid) return;
 
-  const pity5   = Math.min(78, Math.max(0, parseInt(document.getElementById('pity5').value)   || 0));
-  const pity4   = Math.min( 9, Math.max(0, parseInt(document.getElementById('pity4').value)   || 0));
-  const initCor = Math.max(0, parseInt(document.getElementById('initial-corals').value) || 0);
+  const pity5          = Math.min(78, Math.max(0, parseInt(document.getElementById('pity5').value)   || 0));
+  const pity4          = Math.min( 9, Math.max(0, parseInt(document.getElementById('pity4').value)   || 0));
+  const initCor        = Math.max(0, parseInt(document.getElementById('initial-corals').value)        || 0);
+  const initAstrites   = Math.max(0, parseInt(document.getElementById('initial-astrites').value)      || 0);
+  const initLustrous   = Math.max(0, parseInt(document.getElementById('initial-lustrous-tides').value)|| 0);
+  const initPulls      = Math.floor(initAstrites / 160) + initLustrous;
 
   const std5Copies = STD_5STAR.map((_, i) => {
     const v = parseInt(document.getElementById(`std5-${i}`).value);
@@ -930,6 +948,32 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="coral-val total-val">${initCor + Math.round(res.avgEarnedCorals) - totalUsedAvg} 個</span>
         </div>
       </div>
+      ${(() => {
+        const avgPulls = Math.round(res.avg);
+        const needAfterLustrous = Math.max(0, avgPulls - initLustrous);
+        const astriteNeeded = needAfterLustrous * 160;
+        const remainAstrites = Math.max(0, astriteNeeded - initAstrites);
+        return `
+      <h3>抽卡資源統計</h3>
+      <div class="coral-table">
+        <div class="coral-row">
+          <span class="coral-lbl">初始持有浮金波紋</span>
+          <span class="coral-val">${initLustrous} 抽</span>
+        </div>
+        <div class="coral-row total">
+          <span class="coral-lbl">扣除初始浮金波紋後預計還需</span>
+          <span class="coral-val total-val">${needAfterLustrous} 抽（需 ${astriteNeeded.toLocaleString()} 星聲）</span>
+        </div>
+        <div class="coral-row">
+          <span class="coral-lbl">初始持有星聲</span>
+          <span class="coral-val">${initAstrites.toLocaleString()} 個</span>
+        </div>
+        <div class="coral-row total">
+          <span class="coral-lbl">扣除初始星聲後預計還需</span>
+          <span class="coral-val total-val">${remainAstrites.toLocaleString()} 星聲</span>
+        </div>
+      </div>`;
+      })()}
     `;
 
     document.getElementById('results').style.display = 'block';
