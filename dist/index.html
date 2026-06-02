@@ -651,9 +651,10 @@ function simulate(p) {
   let shopEchoes = 0;
   let corals     = p.initialCorals;
 
-  let coralForEchoes = 0;
-  let coralForPulls  = 0;
-  let totalPulls     = 0;
+  let coralForEchoes  = 0;
+  let coralForPulls   = 0;
+  let totalCoralsEarned = 0;
+  let totalPulls      = 0;
 
   const std5 = [...p.std5Copies];
   const std4 = [...p.std4Copies];
@@ -721,11 +722,13 @@ function simulate(p) {
       else       { isUP = Math.random() < 0.5; if (!isUP) g5up = true; }
 
       if (isUP) {
-        corals += coralFor5Star(upCopies);
+        const gained = coralFor5Star(upCopies);
+        corals += gained; totalCoralsEarned += gained;
         upCopies++;
       } else {
         const ci = Math.floor(Math.random() * 5);
-        corals += coralFor5Star(std5[ci]) + 30; // +30 非UP額外
+        const gained = coralFor5Star(std5[ci]) + 30; // +30 非UP額外
+        corals += gained; totalCoralsEarned += gained;
         std5[ci]++;
       }
 
@@ -736,17 +739,19 @@ function simulate(p) {
 
       if (isUP4) {
         const ci = up4Idx[Math.floor(Math.random() * up4Idx.length)];
-        corals += coralFor4StarChar(std4[ci]);
+        const gained = coralFor4StarChar(std4[ci]);
+        corals += gained; totalCoralsEarned += gained;
         std4[ci]++;
       } else {
         // 29 個非 UP 內容：9 常駐角色 + 20 武器
         const roll = Math.floor(Math.random() * 29);
         if (roll < 9) {
           const ci = nonUp4Idx[roll];
-          corals += coralFor4StarChar(std4[ci]);
+          const gained = coralFor4StarChar(std4[ci]);
+          corals += gained; totalCoralsEarned += gained;
           std4[ci]++;
         } else {
-          corals += 3; // 4 星武器
+          corals += 3; totalCoralsEarned += 3; // 4 星武器
         }
       }
     }
@@ -781,11 +786,11 @@ function simulate(p) {
     applyActions();
   }
 
-  return { pulls: totalPulls, coralForEchoes, coralForPulls };
+  return { pulls: totalPulls, coralForEchoes, coralForPulls, totalCoralsEarned };
 }
 
 function runSim(params, iters = 100000) {
-  let sumPulls = 0, sumEchoes = 0, sumPullCoral = 0;
+  let sumPulls = 0, sumEchoes = 0, sumPullCoral = 0, sumEarned = 0;
   const arr = new Int32Array(iters);
 
   for (let i = 0; i < iters; i++) {
@@ -793,6 +798,7 @@ function runSim(params, iters = 100000) {
     sumPulls      += r.pulls;
     sumEchoes     += r.coralForEchoes;
     sumPullCoral  += r.coralForPulls;
+    sumEarned     += r.totalCoralsEarned;
     arr[i]         = r.pulls;
   }
 
@@ -803,8 +809,9 @@ function runSim(params, iters = 100000) {
   }
   return {
     avg:   sumPulls     / iters,
-    avgEchoCorals: sumEchoes    / iters,
-    avgPullCorals: sumPullCoral / iters,
+    avgEchoCorals:  sumEchoes    / iters,
+    avgPullCorals:  sumPullCoral / iters,
+    avgEarnedCorals: sumEarned   / iters,
     ...pcts,
   };
 }
@@ -879,9 +886,9 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
   setTimeout(() => {
     const res = runSim(params, 100000);
 
-    const avgEchoTimes = Math.round(res.avgEchoCorals / 360);
-    const avgPullBuys  = Math.round(res.avgPullCorals  /   8);
-    const totalCoralAvg = Math.round(res.avgEchoCorals + res.avgPullCorals);
+    const avgEchoTimes   = Math.round(res.avgEchoCorals / 360);
+    const avgPullBuys    = Math.round(res.avgPullCorals  /   8);
+    const totalUsedAvg   = Math.round(res.avgEchoCorals + res.avgPullCorals);
 
     document.getElementById('results-content').innerHTML = `
       <div class="result-hero">
@@ -896,9 +903,17 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="pct-pulls">${res[`p${p}`]} 抽</span>
         </div>`).join('')}
       </div>
-      <h3>餘波珊瑚使用量（期望值）</h3>
+      <h3>餘波珊瑚統計（期望值）</h3>
       <div class="coral-table">
         <div class="coral-row">
+          <span class="coral-lbl">初始持有</span>
+          <span class="coral-val">${initCor} 個</span>
+        </div>
+        <div class="coral-row">
+          <span class="coral-lbl">抽卡過程獲取</span>
+          <span class="coral-val">${Math.round(res.avgEarnedCorals)} 個</span>
+        </div>
+        <div class="coral-row"">
           <span class="coral-lbl">兌換 5 星 UP 回音頻段</span>
           <span class="coral-val">${Math.round(res.avgEchoCorals)} 個（約 ${avgEchoTimes} 次）</span>
         </div>
@@ -906,9 +921,13 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="coral-lbl">兌換浮金波紋</span>
           <span class="coral-val">${Math.round(res.avgPullCorals)} 個（約 ${avgPullBuys} 抽）</span>
         </div>
+        <div class="coral-row">
+          <span class="coral-lbl">總共使用珊瑚</span>
+          <span class="coral-val">${totalUsedAvg} 個</span>
+        </div>
         <div class="coral-row total">
-          <span class="coral-lbl">合計使用</span>
-          <span class="coral-val total-val">${totalCoralAvg} 個</span>
+          <span class="coral-lbl">剩餘珊瑚</span>
+          <span class="coral-val total-val">${initCor + Math.round(res.avgEarnedCorals) - totalUsedAvg} 個</span>
         </div>
       </div>
     `;
