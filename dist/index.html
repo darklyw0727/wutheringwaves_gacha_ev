@@ -392,25 +392,6 @@
     <p>5星角色中獎機率提升時會同步降低4星與3星內容的獲取機率，例如當5星中獎機率提升8%時，4星羽3星內容的獲取機率都會下降4%</p>
   </div>
 
-  <!-- 初始設定 -->
-  <div class="card">
-    <h2>初始設定</h2>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>當前持有的星聲數量</label>
-        <input type="number" id="initial-astrites" min="0" value="0" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label>當前持有的浮金波紋數量</label>
-        <input type="number" id="initial-lustrous-tides" min="0" value="0" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label>當前持有的餘波珊瑚數量</label>
-        <input type="number" id="initial-corals" min="0" value="0" placeholder="0">
-      </div>
-    </div>
-  </div>
-
   <!-- 目標設定 -->
   <div class="card">
     <h2>目標設定</h2>
@@ -431,6 +412,33 @@
         <label>目標鏈數</label>
         <select id="target-chains"></select>
       </div>
+    </div>
+    <div class="error-msg" id="target-error"></div>
+  </div>
+
+  <!-- 初始設定 -->
+  <div class="card">
+    <h2>初始設定</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>當前持有的星聲數量</label>
+        <input type="number" id="initial-astrites" min="0" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>當前持有的浮金波紋數量</label>
+        <input type="number" id="initial-lustrous-tides" min="0" value="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>當前持有的餘波珊瑚數量</label>
+        <input type="number" id="initial-corals" min="0" value="0" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 保底進度 -->
+  <div class="card">
+    <h2>保底進度</h2>
+    <div class="form-grid">
       <div class="form-group">
         <label>5 星保底進度（已累積抽數，0–78）</label>
         <input type="number" id="pity5" min="0" max="78" value="0" placeholder="0">
@@ -454,7 +462,6 @@
         </label>
       </div>
     </div>
-    <div class="error-msg" id="target-error"></div>
   </div>
 
   <!-- 常駐角色狀態 -->
