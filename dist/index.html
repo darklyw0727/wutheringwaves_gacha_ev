@@ -34,24 +34,9 @@
   <!-- 目標設定 -->
   <div class="card">
     <h2>目標設定</h2>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>UP 角色當前鏈數</label>
-        <select id="current-chains">
-          <option value="-1">未擁有</option>
-          <option value="0">0 鏈</option>
-          <option value="1">1 鏈</option>
-          <option value="2">2 鏈</option>
-          <option value="3">3 鏈</option>
-          <option value="4">4 鏈</option>
-          <option value="5">5 鏈</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>目標鏈數</label>
-        <select id="target-chains"></select>
-      </div>
-    </div>
+    <p class="hint-text">可設定多個目標角色（如連續多期 UP），系統會依序模擬各 UP 池的抽取；保底進度共享，前一池的保底延續至下一池。</p>
+    <div id="up-targets-list"></div>
+    <button class="add-target-btn" id="add-target-btn">＋ 新增目標角色</button>
     <div class="error-msg" id="target-error"></div>
   </div>
 

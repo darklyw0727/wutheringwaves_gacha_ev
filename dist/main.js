@@ -78,27 +78,89 @@ STD_4STAR.forEach((name, i) => {
   std4Grid.appendChild(card);
 });
 
-// ── 目標鏈數選項（隨起始鏈數動態更新）────────────────────
-const currentChainsEl = document.getElementById('current-chains');
-const targetChainsEl  = document.getElementById('target-chains');
+// ── 多目標角色設定 ────────────────────────────────────────
+let upTargets = [{ currentChains: -1, targetChains: 0 }];
 
-function updateTargetOpts() {
-  const cur = parseInt(currentChainsEl.value); // -1 ~ 5
-  const minTarget = cur + 1; // 0 ~ 6
-  const prevVal = parseInt(targetChainsEl.value);
-  targetChainsEl.innerHTML = '';
-  for (let c = Math.max(0, minTarget); c <= 6; c++) {
+function buildTargetChainsOpts(sel, currentChains, savedTarget) {
+  sel.innerHTML = '';
+  for (let c = Math.max(0, currentChains + 1); c <= 6; c++) {
     const opt = document.createElement('option');
     opt.value = c;
     opt.textContent = `${c} 鏈`;
-    targetChainsEl.appendChild(opt);
+    sel.appendChild(opt);
   }
-  if (!isNaN(prevVal) && prevVal >= Math.max(0, minTarget)) {
-    targetChainsEl.value = prevVal;
+  if (savedTarget !== undefined && savedTarget > currentChains) {
+    sel.value = savedTarget;
   }
 }
-currentChainsEl.addEventListener('change', updateTargetOpts);
-updateTargetOpts();
+
+function renderUpTargets() {
+  const container = document.getElementById('up-targets-list');
+  container.innerHTML = '';
+  upTargets.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'up-target-row';
+
+    const label = document.createElement('span');
+    label.className = 'up-target-label';
+    label.textContent = `UP${i + 1}`;
+
+    const curSel = document.createElement('select');
+    curSel.className = 'up-target-select';
+    [[-1,'未擁有'],[0,'0鏈'],[1,'1鏈'],[2,'2鏈'],[3,'3鏈'],[4,'4鏈'],[5,'5鏈']].forEach(([v, l]) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = l;
+      if (v === t.currentChains) o.selected = true;
+      curSel.appendChild(o);
+    });
+
+    const arrow = document.createElement('span');
+    arrow.className = 'up-target-arrow';
+    arrow.textContent = '→ 目標';
+
+    const tgtSel = document.createElement('select');
+    tgtSel.className = 'up-target-select';
+    buildTargetChainsOpts(tgtSel, t.currentChains, t.targetChains);
+
+    upTargets[i].targetChains = parseInt(tgtSel.value);
+
+    curSel.addEventListener('change', () => {
+      upTargets[i].currentChains = parseInt(curSel.value);
+      buildTargetChainsOpts(tgtSel, upTargets[i].currentChains, upTargets[i].targetChains);
+      upTargets[i].targetChains = parseInt(tgtSel.value);
+    });
+    tgtSel.addEventListener('change', () => {
+      upTargets[i].targetChains = parseInt(tgtSel.value);
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-target-btn';
+    removeBtn.textContent = '✕ 移除';
+    removeBtn.style.visibility = upTargets.length <= 1 ? 'hidden' : 'visible';
+    removeBtn.addEventListener('click', () => {
+      upTargets.splice(i, 1);
+      renderUpTargets();
+    });
+
+    row.appendChild(label);
+    row.appendChild(curSel);
+    row.appendChild(arrow);
+    row.appendChild(tgtSel);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+  });
+
+  // 只剩一個時隱藏移除按鈕
+  const btns = container.querySelectorAll('.remove-target-btn');
+  btns.forEach(b => { b.style.visibility = upTargets.length <= 1 ? 'hidden' : 'visible'; });
+}
+
+document.getElementById('add-target-btn').addEventListener('click', () => {
+  upTargets.push({ currentChains: -1, targetChains: 0 });
+  renderUpTargets();
+});
+
+renderUpTargets();
 
 // ── 批次設定常駐角色鏈數 ──────────────────────────────────
 function buildBulkSelect(id) {
@@ -136,48 +198,21 @@ function simulate(p) {
   let g5up  = p.guaranteed5UP;
   let g4up  = p.guaranteed4UP;
 
-  let upCopies   = p.startingUPCopies; // 0=未擁有, 1=0鏈 …
-  let shopEchoes = 0;
-  let corals     = p.initialCorals;
-
-  let coralForEchoes  = 0;
-  let coralForPulls   = 0;
+  let corals            = p.initialCorals;
+  let coralForEchoes    = 0;
+  let coralForPulls     = 0;
   let totalCoralsEarned = 0;
-  let totalPulls      = 0;
+  let totalPulls        = 0;
+  const pullsPerTarget  = [];
 
-  const std5 = [...p.std5Copies];
-  const std4 = [...p.std4Copies];
+  const std5      = [...p.std5Copies];
+  const std4      = [...p.std4Copies];
   const up4Idx    = p.up4StarIndices;
-  const nonUp4Idx = STD_4STAR
-    .map((_, i) => i)
-    .filter(i => !up4Idx.includes(i));
+  const nonUp4Idx = STD_4STAR.map((_, i) => i).filter(i => !up4Idx.includes(i));
 
-  const targetChains = p.targetChains;
-  const autoEcho     = p.autoUseEchoes;
-  const autoPull     = p.autoUsePulls;
-
-  function isDone() {
-    return upCopies >= 1 && (upCopies - 1 + shopEchoes) >= targetChains;
-  }
-
+  const autoEcho  = p.autoUseEchoes;
+  const autoPull  = p.autoUsePulls;
   const echoFirst = p.coralPriority === 'echo';
-
-  function buyEchoes() {
-    if (!autoEcho || upCopies < 1 || shopEchoes >= 2) return;
-    while (corals >= 360 && shopEchoes < 2) {
-      corals         -= 360;
-      coralForEchoes += 360;
-      shopEchoes++;
-    }
-  }
-
-  function buyOnePull() {
-    if (!autoPull || corals < 8 || isDone()) return false;
-    corals        -= 8;
-    coralForPulls += 8;
-    pull();
-    return true;
-  }
 
   function getRate5(p5) {
     if (p5 <= 64) return 0.008;
@@ -187,105 +222,132 @@ function simulate(p) {
     return 1.0;
   }
 
-  function pull() {
-    const r1 = Math.random();
-    let rarity;
-    const rate5 = getRate5(pity5);
-    const delta  = rate5 - 0.008;
-    const rate4  = Math.max(0, 0.06  - delta / 2);
-    if (pity4 >= 9) {
-      rarity = r1 < rate5 ? 5 : 4;
-    } else {
-      if      (r1 < rate5)         rarity = 5;
-      else if (r1 < rate5 + rate4) rarity = 4;
-      else                         rarity = 3;
+  // 逐一處理每個目標，共享 pity/corals/std 狀態
+  for (const target of p.targets) {
+    let upCopies   = target.startingUPCopies;
+    let shopEchoes = 0;
+    const targetChains = target.targetChains;
+    let pullsThisTarget = 0;
+
+    function isDone() {
+      return upCopies >= 1 && (upCopies - 1 + shopEchoes) >= targetChains;
     }
 
-    if      (rarity === 5) { pity5 = 0; pity4 = 0; }
-    else if (rarity === 4) { pity5++;   pity4 = 0; }
-    else                   { pity5++;   pity4++;   }
-
-    if (rarity === 5) {
-      let isUP;
-      if (g5up) { isUP = true; g5up = false; }
-      else       { isUP = Math.random() < 0.5; if (!isUP) g5up = true; }
-
-      if (isUP) {
-        const gained = coralFor5Star(upCopies);
-        corals += gained; totalCoralsEarned += gained;
-        upCopies++;
+    function pull() {
+      const r1 = Math.random();
+      let rarity;
+      const rate5  = getRate5(pity5);
+      const delta  = rate5 - 0.008;
+      const rate4  = Math.max(0, 0.06 - delta / 2);
+      if (pity4 >= 9) {
+        rarity = r1 < rate5 ? 5 : 4;
       } else {
-        const ci = Math.floor(Math.random() * 5);
-        const gained = coralFor5Star(std5[ci]) + 30; // +30 非UP額外
-        corals += gained; totalCoralsEarned += gained;
-        std5[ci]++;
+        if      (r1 < rate5)          rarity = 5;
+        else if (r1 < rate5 + rate4)  rarity = 4;
+        else                          rarity = 3;
       }
 
-    } else if (rarity === 4) {
-      let isUP4;
-      if (g4up) { isUP4 = true; g4up = false; }
-      else       { isUP4 = Math.random() < 0.5; if (!isUP4) g4up = true; }
+      if      (rarity === 5) { pity5 = 0; pity4 = 0; }
+      else if (rarity === 4) { pity5++;   pity4 = 0; }
+      else                   { pity5++;   pity4++;   }
 
-      if (isUP4) {
-        const ci = up4Idx[Math.floor(Math.random() * up4Idx.length)];
-        const gained = coralFor4StarChar(std4[ci]);
-        corals += gained; totalCoralsEarned += gained;
-        std4[ci]++;
-      } else {
-        // 29 個非 UP 內容：9 常駐角色 + 20 武器
-        const roll = Math.floor(Math.random() * 29);
-        if (roll < 9) {
-          const ci = nonUp4Idx[roll];
+      if (rarity === 5) {
+        let isUP;
+        if (g5up) { isUP = true; g5up = false; }
+        else       { isUP = Math.random() < 0.5; if (!isUP) g5up = true; }
+
+        if (isUP) {
+          const gained = coralFor5Star(upCopies);
+          corals += gained; totalCoralsEarned += gained;
+          upCopies++;
+        } else {
+          const ci = Math.floor(Math.random() * 5);
+          const gained = coralFor5Star(std5[ci]) + 30;
+          corals += gained; totalCoralsEarned += gained;
+          std5[ci]++;
+        }
+      } else if (rarity === 4) {
+        let isUP4;
+        if (g4up) { isUP4 = true; g4up = false; }
+        else       { isUP4 = Math.random() < 0.5; if (!isUP4) g4up = true; }
+
+        if (isUP4) {
+          const ci = up4Idx[Math.floor(Math.random() * up4Idx.length)];
           const gained = coralFor4StarChar(std4[ci]);
           corals += gained; totalCoralsEarned += gained;
           std4[ci]++;
         } else {
-          corals += 3; totalCoralsEarned += 3; // 4 星武器
+          const roll = Math.floor(Math.random() * 29);
+          if (roll < 9) {
+            const ci = nonUp4Idx[roll];
+            const gained = coralFor4StarChar(std4[ci]);
+            corals += gained; totalCoralsEarned += gained;
+            std4[ci]++;
+          } else {
+            corals += 3; totalCoralsEarned += 3;
+          }
         }
       }
     }
-    // 3 星武器：產生殘振珊瑚（不同幣種），不計入
-  }
 
-  function applyActions() {
-    let changed = true;
-    while (changed && !isDone()) {
-      changed = false;
-      if (echoFirst) {
-        buyEchoes();
-        if (isDone()) break;
-        if (buyOnePull()) { totalPulls++; changed = true; }
-      } else {
-        if (buyOnePull()) { totalPulls++; changed = true; }
-        buyEchoes();
+    function buyEchoes() {
+      if (!autoEcho || upCopies < 1 || shopEchoes >= 2) return;
+      while (corals >= 360 && shopEchoes < 2) {
+        corals -= 360; coralForEchoes += 360; shopEchoes++;
       }
     }
-  }
 
-  applyActions();
-  if (isDone()) return { pulls: 0, coralForEchoes, coralForPulls };
+    function buyOnePull() {
+      if (!autoPull || corals < 8 || isDone()) return false;
+      corals -= 8; coralForPulls += 8;
+      pull();
+      return true;
+    }
 
-  const MAX = 30000;
-  while (!isDone() && totalPulls < MAX) {
-    pull();
-    totalPulls++;
+    function applyActions() {
+      let changed = true;
+      while (changed && !isDone()) {
+        changed = false;
+        if (echoFirst) {
+          buyEchoes();
+          if (isDone()) break;
+          if (buyOnePull()) { pullsThisTarget++; changed = true; }
+        } else {
+          if (buyOnePull()) { pullsThisTarget++; changed = true; }
+          buyEchoes();
+        }
+      }
+    }
+
     applyActions();
+
+    const MAX = 30000;
+    while (!isDone() && pullsThisTarget < MAX) {
+      pull();
+      pullsThisTarget++;
+      applyActions();
+    }
+
+    pullsPerTarget.push(pullsThisTarget);
+    totalPulls += pullsThisTarget;
   }
 
-  return { pulls: totalPulls, coralForEchoes, coralForPulls, totalCoralsEarned };
+  return { pulls: totalPulls, coralForEchoes, coralForPulls, totalCoralsEarned, pullsPerTarget };
 }
 
 function runSim(params, iters = 100000) {
   let sumPulls = 0, sumEchoes = 0, sumPullCoral = 0, sumEarned = 0;
   const arr = new Int32Array(iters);
+  const sumPerTarget = new Array(params.targets.length).fill(0);
 
   for (let i = 0; i < iters; i++) {
-    const r   = simulate(params);
-    sumPulls      += r.pulls;
-    sumEchoes     += r.coralForEchoes;
-    sumPullCoral  += r.coralForPulls;
-    sumEarned     += r.totalCoralsEarned;
-    arr[i]         = r.pulls;
+    const r = simulate(params);
+    sumPulls     += r.pulls;
+    sumEchoes    += r.coralForEchoes;
+    sumPullCoral += r.coralForPulls;
+    sumEarned    += r.totalCoralsEarned;
+    arr[i]        = r.pulls;
+    r.pullsPerTarget.forEach((p, ti) => { sumPerTarget[ti] += p; });
   }
 
   arr.sort();
@@ -294,10 +356,11 @@ function runSim(params, iters = 100000) {
     pcts[`p${p}`] = arr[Math.floor(iters * p / 100)];
   }
   return {
-    avg:   sumPulls     / iters,
-    avgEchoCorals:  sumEchoes    / iters,
-    avgPullCorals:  sumPullCoral / iters,
-    avgEarnedCorals: sumEarned   / iters,
+    avg:             sumPulls     / iters,
+    avgEchoCorals:   sumEchoes    / iters,
+    avgPullCorals:   sumPullCoral / iters,
+    avgEarnedCorals: sumEarned    / iters,
+    avgPerTarget:    sumPerTarget.map(s => s / iters),
     ...pcts,
   };
 }
@@ -325,25 +388,26 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     valid = false;
   }
 
-  const currentChains = parseInt(currentChainsEl.value);
-  const targetChains  = parseInt(targetChainsEl.value);
-  if (isNaN(targetChains) || targetChains <= currentChains) {
-    document.getElementById('target-error').textContent = '目標鏈數必須高於當前鏈數。';
-    valid = false;
+  for (let i = 0; i < upTargets.length; i++) {
+    const t = upTargets[i];
+    if (isNaN(t.targetChains) || t.targetChains <= t.currentChains) {
+      document.getElementById('target-error').textContent = `UP${i + 1} 的目標鏈數必須高於當前鏈數。`;
+      valid = false;
+      break;
+    }
   }
 
   if (!valid) return;
 
-  const pity5          = Math.min(78, Math.max(0, parseInt(document.getElementById('pity5').value)   || 0));
-  const pity4          = Math.min( 9, Math.max(0, parseInt(document.getElementById('pity4').value)   || 0));
-  const initCor        = Math.max(0, parseInt(document.getElementById('initial-corals').value)        || 0);
-  const initAstrites   = Math.max(0, parseInt(document.getElementById('initial-astrites').value)      || 0);
-  const initLustrous   = Math.max(0, parseInt(document.getElementById('initial-lustrous-tides').value)|| 0);
-  const initPulls      = Math.floor(initAstrites / 160) + initLustrous;
+  const pity5        = Math.min(78, Math.max(0, parseInt(document.getElementById('pity5').value)    || 0));
+  const pity4        = Math.min( 9, Math.max(0, parseInt(document.getElementById('pity4').value)    || 0));
+  const initCor      = Math.max(0, parseInt(document.getElementById('initial-corals').value)         || 0);
+  const initAstrites = Math.max(0, parseInt(document.getElementById('initial-astrites').value)       || 0);
+  const initLustrous = Math.max(0, parseInt(document.getElementById('initial-lustrous-tides').value) || 0);
 
   const std5Copies = STD_5STAR.map((_, i) => {
     const v = parseInt(document.getElementById(`std5-${i}`).value);
-    return v + 1; // -1(未擁有)→0, 0鏈→1, …
+    return v + 1;
   });
   const std4Copies = STD_4STAR.map((_, i) => {
     const v = parseInt(document.getElementById(`std4-${i}`).value);
@@ -353,17 +417,19 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
   const params = {
     pity5,
     pity4,
-    guaranteed5UP:    document.getElementById('guaranteed5up').checked,
-    guaranteed4UP:    document.getElementById('guaranteed4up').checked,
-    startingUPCopies: currentChains + 1,
-    targetChains,
-    initialCorals:    initCor,
-    autoUseEchoes:    autoEchoEl.checked,
-    autoUsePulls:     autoPullEl.checked,
-    coralPriority:    document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
+    guaranteed5UP:  document.getElementById('guaranteed5up').checked,
+    guaranteed4UP:  document.getElementById('guaranteed4up').checked,
+    targets:        upTargets.map(t => ({
+      startingUPCopies: t.currentChains + 1,
+      targetChains:     t.targetChains,
+    })),
+    initialCorals:  initCor,
+    autoUseEchoes:  autoEchoEl.checked,
+    autoUsePulls:   autoPullEl.checked,
+    coralPriority:  document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
     std5Copies,
     std4Copies,
-    up4StarIndices:   [...up4Selected],
+    up4StarIndices: [...up4Selected],
   };
 
   const btn = document.getElementById('calculate-btn');
@@ -374,15 +440,25 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
   setTimeout(() => {
     const res = runSim(params, 100000);
 
-    const avgEchoTimes   = Math.round(res.avgEchoCorals / 360);
-    const avgPullBuys    = Math.round(res.avgPullCorals  /   8);
-    const totalUsedAvg   = Math.round(res.avgEchoCorals + res.avgPullCorals);
+    const avgEchoTimes = Math.round(res.avgEchoCorals / 360);
+    const avgPullBuys  = Math.round(res.avgPullCorals  /   8);
+    const totalUsedAvg = Math.round(res.avgEchoCorals + res.avgPullCorals);
+    const multiTarget  = upTargets.length > 1;
 
     document.getElementById('results-content').innerHTML = `
       <div class="result-hero">
         <div class="big">${Math.round(res.avg)}</div>
-        <div class="unit">預期總抽數（含珊瑚兌換所得的抽數）</div>
+        <div class="unit">預期總抽數${multiTarget ? `（${upTargets.length} 個目標合計，含珊瑚兌換所得的抽數）` : '（含珊瑚兌換所得的抽數）'}</div>
       </div>
+      ${multiTarget ? `
+      <h3>各目標預期抽數</h3>
+      <div class="coral-table">
+        ${res.avgPerTarget.map((avg, i) => `
+        <div class="coral-row">
+          <span class="coral-lbl">UP${i + 1}（${upTargets[i].currentChains === -1 ? '未擁有' : upTargets[i].currentChains + '鏈'} → ${upTargets[i].targetChains} 鏈）</span>
+          <span class="coral-val">${Math.round(avg)} 抽</span>
+        </div>`).join('')}
+      </div>` : ''}
       <div class="pct-table">
         ${[10,20,30,40,50,60,70,80,90].map(p => `
         <div class="pct-row${p === 50 ? ' pct-mid' : ''}">
