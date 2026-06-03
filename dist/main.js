@@ -404,6 +404,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
   const initCor      = Math.max(0, parseInt(document.getElementById('initial-corals').value)         || 0);
   const initAstrites = Math.max(0, parseInt(document.getElementById('initial-astrites').value)       || 0);
   const initLustrous = Math.max(0, parseInt(document.getElementById('initial-lustrous-tides').value) || 0);
+  const moneyRate    = Math.max(0.01, parseFloat(document.getElementById('money-rate').value)        || 1.97);
 
   const std5Copies = STD_5STAR.map((_, i) => {
     const v = parseInt(document.getElementById(`std5-${i}`).value);
@@ -518,6 +519,11 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="coral-lbl">扣除初始星聲後預計還需</span>
           <span class="coral-val total-val">${remainAstrites.toLocaleString()} 星聲</span>
         </div>
+        ${remainAstrites > 0 ? `
+        <div class="coral-row total">
+          <span class="coral-lbl">換算真錢約需（依設定匯率 1:${moneyRate.toFixed(2)}）</span>
+          <span class="coral-val total-val">${Math.ceil(remainAstrites / moneyRate).toLocaleString()} 元</span>
+        </div>` : ''}
       </div>`;
       })()}
     `;

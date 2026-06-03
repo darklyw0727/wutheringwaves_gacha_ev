@@ -269,6 +269,13 @@ select option { background: #0e1523; }
 }
 
 /* Hint text */
+.hint-inline {
+  display: block;
+  font-size: 0.75rem;
+  color: #5a7090;
+  margin-top: 2px;
+}
+
 .hint-text {
   font-size: 0.8rem;
   color: #5a7090;
