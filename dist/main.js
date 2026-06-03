@@ -61,6 +61,7 @@ STD_4STAR.forEach((name, i) => {
       }
     });
     document.getElementById('up4-error').textContent = '';
+    saveSettings();
   });
   up4Grid.appendChild(item);
 });
@@ -128,9 +129,11 @@ function renderUpTargets() {
       upTargets[i].currentChains = parseInt(curSel.value);
       buildTargetChainsOpts(tgtSel, upTargets[i].currentChains, upTargets[i].targetChains);
       upTargets[i].targetChains = parseInt(tgtSel.value);
+      saveSettings();
     });
     tgtSel.addEventListener('change', () => {
       upTargets[i].targetChains = parseInt(tgtSel.value);
+      saveSettings();
     });
 
     const removeBtn = document.createElement('button');
@@ -140,6 +143,7 @@ function renderUpTargets() {
     removeBtn.addEventListener('click', () => {
       upTargets.splice(i, 1);
       renderUpTargets();
+      saveSettings();
     });
 
     row.appendChild(label);
@@ -158,6 +162,7 @@ function renderUpTargets() {
 document.getElementById('add-target-btn').addEventListener('click', () => {
   upTargets.push({ currentChains: -1, targetChains: 0 });
   renderUpTargets();
+  saveSettings();
 });
 
 renderUpTargets();
@@ -365,6 +370,75 @@ function runSim(params, iters = 100000) {
   };
 }
 
+// ── 設定持久化 ────────────────────────────────────────────
+const STORAGE_KEY = 'wuwa_gacha_settings';
+
+function saveSettings() {
+  const data = {
+    std5: STD_5STAR.map((_, i) => document.getElementById(`std5-${i}`).value),
+    std4: STD_4STAR.map((_, i) => document.getElementById(`std4-${i}`).value),
+    up4Selected: [...up4Selected],
+    upTargets: upTargets.map(t => ({ currentChains: t.currentChains, targetChains: t.targetChains })),
+    pity5: document.getElementById('pity5').value,
+    pity4: document.getElementById('pity4').value,
+    guaranteed5up: document.getElementById('guaranteed5up').checked,
+    guaranteed4up: document.getElementById('guaranteed4up').checked,
+    initialCorals: document.getElementById('initial-corals').value,
+    initialAstrites: document.getElementById('initial-astrites').value,
+    initialLustrousTides: document.getElementById('initial-lustrous-tides').value,
+    moneyRate: document.getElementById('money-rate').value,
+    autoEcho: document.getElementById('auto-echo').checked,
+    autoPulls: document.getElementById('auto-pulls').checked,
+    coralPriority: document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadSettings() {
+  let data;
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return; }
+  if (!data) return;
+
+  if (data.std5) data.std5.forEach((v, i) => { const el = document.getElementById(`std5-${i}`); if (el) el.value = v; });
+  if (data.std4) data.std4.forEach((v, i) => { const el = document.getElementById(`std4-${i}`); if (el) el.value = v; });
+
+  if (data.up4Selected) {
+    up4Selected.clear();
+    data.up4Selected.forEach(i => up4Selected.add(i));
+    up4Grid.querySelectorAll('.up4-item').forEach(el => {
+      const idx = parseInt(el.dataset.idx);
+      el.classList.toggle('up4-selected', up4Selected.has(idx));
+      el.classList.toggle('up4-disabled', !up4Selected.has(idx) && up4Selected.size >= 3);
+    });
+    up4CountEl.textContent = up4Selected.size;
+  }
+
+  if (data.upTargets && data.upTargets.length > 0) {
+    upTargets = data.upTargets;
+    renderUpTargets();
+  }
+
+  if (data.pity5 !== undefined) document.getElementById('pity5').value = data.pity5;
+  if (data.pity4 !== undefined) document.getElementById('pity4').value = data.pity4;
+  if (data.guaranteed5up !== undefined) document.getElementById('guaranteed5up').checked = data.guaranteed5up;
+  if (data.guaranteed4up !== undefined) document.getElementById('guaranteed4up').checked = data.guaranteed4up;
+  if (data.initialCorals !== undefined) document.getElementById('initial-corals').value = data.initialCorals;
+  if (data.initialAstrites !== undefined) document.getElementById('initial-astrites').value = data.initialAstrites;
+  if (data.initialLustrousTides !== undefined) document.getElementById('initial-lustrous-tides').value = data.initialLustrousTides;
+  if (data.moneyRate !== undefined) document.getElementById('money-rate').value = data.moneyRate;
+  if (data.autoEcho !== undefined) document.getElementById('auto-echo').checked = data.autoEcho;
+  if (data.autoPulls !== undefined) document.getElementById('auto-pulls').checked = data.autoPulls;
+  if (data.coralPriority) {
+    const el = document.querySelector(`input[name="coral-priority"][value="${data.coralPriority}"]`);
+    if (el) el.checked = true;
+  }
+}
+
+// 在所有相關輸入加上自動儲存
+document.querySelectorAll('input, select').forEach(el => {
+  el.addEventListener('change', saveSettings);
+});
+
 // ── 優先順序顯示控制 ──────────────────────────────────────
 const autoEchoEl  = document.getElementById('auto-echo');
 const autoPullEl  = document.getElementById('auto-pulls');
@@ -534,3 +608,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 30);
 });
+
+// ── 載入已儲存的設定 ──────────────────────────────────────
+loadSettings();
+updatePriorityGroup();
