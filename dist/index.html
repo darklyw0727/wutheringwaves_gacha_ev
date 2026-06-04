@@ -38,6 +38,12 @@
     <div id="up-targets-list"></div>
     <button class="add-target-btn" id="add-target-btn">＋ 新增目標角色</button>
     <div class="error-msg" id="target-error"></div>
+    <div class="cyberpunk-toggle">
+      <label class="checkbox-label">
+        <input type="checkbox" id="cyberpunk-mode">
+        套用電馭叛客連動規則（珊瑚改為幻夢珊瑚，各項獲取量調整，波紋改為捕夢波紋）
+      </label>
+    </div>
   </div>
 
   <!-- 初始設定 -->
@@ -49,11 +55,11 @@
         <input type="number" id="initial-astrites" min="0" value="0" placeholder="0">
       </div>
       <div class="form-group">
-        <label>當前持有的浮金波紋數量</label>
+        <label>當前持有的<span id="tide-label-input">浮金波紋</span>數量</label>
         <input type="number" id="initial-lustrous-tides" min="0" value="0" placeholder="0">
       </div>
       <div class="form-group">
-        <label>當前持有的餘波珊瑚數量</label>
+        <label>當前持有的<span id="coral-label-input">餘波珊瑚</span>數量</label>
         <input type="number" id="initial-corals" min="0" value="0" placeholder="0">
       </div>
       <div class="form-group">
@@ -130,11 +136,11 @@
     <div class="coral-opts">
       <label class="checkbox-label">
         <input type="checkbox" id="auto-echo">
-        自動兌換 5 星 UP 角色回音頻段（每次 360 珊瑚，最多兌換 2 次，需已擁有角色本體）
+        自動兌換 5 星 UP 角色回音頻段（每次 360 <span id="coral-label-echo">餘波珊瑚</span>，最多兌換 2 次，需已擁有角色本體）
       </label>
       <label class="checkbox-label">
         <input type="checkbox" id="auto-pulls">
-        自動兌換浮金波紋進行抽取（每 8 珊瑚兌換 1 抽）
+        自動兌換<span id="tide-label-pull">浮金波紋</span>進行抽取（每 8 <span id="coral-label-pull">餘波珊瑚</span>兌換 1 抽）
       </label>
       <div class="priority-group disabled" id="priority-group">
         <span class="priority-label">同時啟用兩項時，珊瑚使用優先順序：</span>

@@ -205,6 +205,15 @@ select option { background: #0e1523; }
 }
 .up4-item.up4-disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* Cyberpunk toggle */
+.cyberpunk-toggle {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #1c2d46;
+}
+.cyberpunk-toggle .checkbox-label { color: #f0c040; }
+.cyberpunk-toggle input[type="checkbox"] { accent-color: #f0c040; }
+
 /* Coral settings */
 .coral-opts { display: flex; flex-direction: column; gap: 12px; }
 

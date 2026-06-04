@@ -190,11 +190,11 @@ document.getElementById('bulk4-btn').addEventListener('click', () => {
 });
 
 // ── 模擬引擎 ──────────────────────────────────────────────
-function coralFor5Star(copies) {
-  return copies < 7 ? 15 : 40;
+function coralFor5Star(copies, cyberpunk) {
+  return cyberpunk ? (copies < 7 ? 12 : 30) : (copies < 7 ? 15 : 40);
 }
-function coralFor4StarChar(copies) {
-  return copies < 7 ? 3 : 8;
+function coralFor4StarChar(copies, cyberpunk) {
+  return cyberpunk ? (copies < 7 ? 2 : 5) : (copies < 7 ? 3 : 8);
 }
 
 function simulate(p) {
@@ -215,9 +215,10 @@ function simulate(p) {
   const up4Idx    = p.up4StarIndices;
   const nonUp4Idx = STD_4STAR.map((_, i) => i).filter(i => !up4Idx.includes(i));
 
-  const autoEcho  = p.autoUseEchoes;
-  const autoPull  = p.autoUsePulls;
-  const echoFirst = p.coralPriority === 'echo';
+  const autoEcho   = p.autoUseEchoes;
+  const autoPull   = p.autoUsePulls;
+  const echoFirst  = p.coralPriority === 'echo';
+  const cyberpunk  = p.cyberpunkMode;
 
   function getRate5(p5) {
     if (p5 <= 64) return 0.008;
@@ -262,12 +263,13 @@ function simulate(p) {
         else       { isUP = Math.random() < 0.5; if (!isUP) g5up = true; }
 
         if (isUP) {
-          const gained = coralFor5Star(upCopies);
+          const gained = coralFor5Star(upCopies, cyberpunk);
           corals += gained; totalCoralsEarned += gained;
           upCopies++;
         } else {
           const ci = Math.floor(Math.random() * 5);
-          const gained = coralFor5Star(std5[ci]) + 30;
+          const bonus = cyberpunk ? 25 : 30;
+          const gained = coralFor5Star(std5[ci], cyberpunk) + bonus;
           corals += gained; totalCoralsEarned += gained;
           std5[ci]++;
         }
@@ -276,20 +278,21 @@ function simulate(p) {
         if (g4up) { isUP4 = true; g4up = false; }
         else       { isUP4 = Math.random() < 0.5; if (!isUP4) g4up = true; }
 
+        const weaponCoral = cyberpunk ? 2 : 3;
         if (isUP4) {
           const ci = up4Idx[Math.floor(Math.random() * up4Idx.length)];
-          const gained = coralFor4StarChar(std4[ci]);
+          const gained = coralFor4StarChar(std4[ci], cyberpunk);
           corals += gained; totalCoralsEarned += gained;
           std4[ci]++;
         } else {
           const roll = Math.floor(Math.random() * 29);
           if (roll < 9) {
             const ci = nonUp4Idx[roll];
-            const gained = coralFor4StarChar(std4[ci]);
+            const gained = coralFor4StarChar(std4[ci], cyberpunk);
             corals += gained; totalCoralsEarned += gained;
             std4[ci]++;
           } else {
-            corals += 3; totalCoralsEarned += 3;
+            corals += weaponCoral; totalCoralsEarned += weaponCoral;
           }
         }
       }
@@ -390,6 +393,7 @@ function saveSettings() {
     autoEcho: document.getElementById('auto-echo').checked,
     autoPulls: document.getElementById('auto-pulls').checked,
     coralPriority: document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
+    cyberpunkMode: document.getElementById('cyberpunk-mode').checked,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -431,6 +435,9 @@ function loadSettings() {
   if (data.coralPriority) {
     const el = document.querySelector(`input[name="coral-priority"][value="${data.coralPriority}"]`);
     if (el) el.checked = true;
+  }
+  if (data.cyberpunkMode !== undefined) {
+    document.getElementById('cyberpunk-mode').checked = data.cyberpunkMode;
   }
 }
 
@@ -489,6 +496,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     return v + 1;
   });
 
+  const cyberpunkMode = document.getElementById('cyberpunk-mode').checked;
   const params = {
     pity5,
     pity4,
@@ -505,6 +513,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     std5Copies,
     std4Copies,
     up4StarIndices: [...up4Selected],
+    cyberpunkMode,
   };
 
   const btn = document.getElementById('calculate-btn');
