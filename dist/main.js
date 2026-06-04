@@ -205,6 +205,7 @@ function simulate(p) {
 
   let corals            = p.initialCorals;
   let coralForEchoes    = 0;
+  let echoCount         = 0;
   let coralForPulls     = 0;
   let totalCoralsEarned = 0;
   let totalPulls        = 0;
@@ -301,7 +302,7 @@ function simulate(p) {
     function buyEchoes() {
       if (!autoEcho || upCopies < 1 || shopEchoes >= 2) return;
       while (corals >= 360 && shopEchoes < 2) {
-        corals -= 360; coralForEchoes += 360; shopEchoes++;
+        corals -= 360; coralForEchoes += 360; shopEchoes++; echoCount++;
       }
     }
 
@@ -319,7 +320,11 @@ function simulate(p) {
         if (echoFirst) {
           buyEchoes();
           if (isDone()) break;
-          if (buyOnePull()) { pullsThisTarget++; changed = true; }
+          // echoFirst：已有角色且尚未兌換滿 2 次回音頻段時，強制存珊瑚不換抽
+          const savingForEcho = autoEcho && upCopies >= 1 && shopEchoes < 2;
+          if (!savingForEcho) {
+            if (buyOnePull()) { pullsThisTarget++; changed = true; }
+          }
         } else {
           if (buyOnePull()) { pullsThisTarget++; changed = true; }
           buyEchoes();
@@ -340,21 +345,22 @@ function simulate(p) {
     totalPulls += pullsThisTarget;
   }
 
-  return { pulls: totalPulls, coralForEchoes, coralForPulls, totalCoralsEarned, pullsPerTarget };
+  return { pulls: totalPulls, coralForEchoes, echoCount, coralForPulls, totalCoralsEarned, pullsPerTarget };
 }
 
 function runSim(params, iters = 100000) {
-  let sumPulls = 0, sumEchoes = 0, sumPullCoral = 0, sumEarned = 0;
+  let sumPulls = 0, sumEchoes = 0, sumEchoCount = 0, sumPullCoral = 0, sumEarned = 0;
   const arr = new Int32Array(iters);
   const sumPerTarget = new Array(params.targets.length).fill(0);
 
   for (let i = 0; i < iters; i++) {
     const r = simulate(params);
-    sumPulls     += r.pulls;
-    sumEchoes    += r.coralForEchoes;
-    sumPullCoral += r.coralForPulls;
-    sumEarned    += r.totalCoralsEarned;
-    arr[i]        = r.pulls;
+    sumPulls      += r.pulls;
+    sumEchoes     += r.coralForEchoes;
+    sumEchoCount  += r.echoCount;
+    sumPullCoral  += r.coralForPulls;
+    sumEarned     += r.totalCoralsEarned;
+    arr[i]         = r.pulls;
     r.pullsPerTarget.forEach((p, ti) => { sumPerTarget[ti] += p; });
   }
 
@@ -364,9 +370,10 @@ function runSim(params, iters = 100000) {
     pcts[`p${p}`] = arr[Math.floor(iters * p / 100)];
   }
   return {
-    avg:             sumPulls     / iters,
-    avgEchoCorals:   sumEchoes    / iters,
-    avgPullCorals:   sumPullCoral / iters,
+    avg:             sumPulls      / iters,
+    avgEchoCorals:   sumEchoes     / iters,
+    avgEchoCount:    sumEchoCount  / iters,
+    avgPullCorals:   sumPullCoral  / iters,
     avgEarnedCorals: sumEarned    / iters,
     avgPerTarget:    sumPerTarget.map(s => s / iters),
     ...pcts,
@@ -524,7 +531,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
   setTimeout(() => {
     const res = runSim(params, 100000);
 
-    const avgEchoTimes = Math.round(res.avgEchoCorals / 360);
+    const avgEchoTimes = Math.round(res.avgEchoCount);
     const avgPullBuys  = Math.round(res.avgPullCorals  /   8);
     const totalUsedAvg = Math.round(res.avgEchoCorals + res.avgPullCorals);
     const multiTarget  = upTargets.length > 1;
