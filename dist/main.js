@@ -1,5 +1,17 @@
 // ── 常數資料 ───────────────────────────────────────────────
 const STD_5STAR = ['維里奈', '安可', '卡卡羅', '凌陽', '鑒心'];
+
+const CYBERPUNK_MILESTONES = [
+  { at: 20,  pulls: 2 },
+  { at: 40,  pulls: 3 },
+  { at: 80,  pulls: 5 },
+  { at: 120, pulls: 5 },
+  { at: 160, echo: 1  },
+  { at: 200, pulls: 5 },
+  { at: 280, pulls: 5 },
+  { at: 360, pulls: 5 },
+  { at: 420, echo: 1  },
+];
 const STD_4STAR = ['秧秧', '熾霞', '白芷', '丹瑾', '散華', '桃祈', '莫特斐', '秋水', '淵武', '燈燈', '釉瑚', '卜靈'];
 const CHAINS_OPTS = [
   { value: '-1', label: '未擁有' },
@@ -220,6 +232,14 @@ function simulate(p) {
   const autoPull   = p.autoUsePulls;
   const echoFirst  = p.coralPriority === 'echo';
   const cyberpunk  = p.cyberpunkMode;
+  const includeBonusRewards = p.cyberpunkMode && p.includeBonusRewards;
+
+  // 聯動額外抽取獎勵追蹤（跨目標共享）
+  let milestoneTotalPulls    = 0;
+  let milestoneIdx           = 0;
+  let pendingMilestoneEchoes = 0;
+  let bonusBannerPulls       = 0;
+  let totalMilestoneEchoesUsed = 0;
 
   function getRate5(p5) {
     if (p5 <= 64) return 0.008;
@@ -231,16 +251,18 @@ function simulate(p) {
 
   // 逐一處理每個目標，共享 pity/corals/std 狀態
   for (const target of p.targets) {
-    let upCopies   = target.startingUPCopies;
-    let shopEchoes = 0;
+    let upCopies       = target.startingUPCopies;
+    let milestoneEchoes = 0;  // 里程碑獎勵回音頻段（免費）
+    let shopEchoes      = 0;  // 珊瑚兌換回音頻段
     const targetChains = target.targetChains;
     let pullsThisTarget = 0;
 
     function isDone() {
-      return upCopies >= 1 && (upCopies - 1 + shopEchoes) >= targetChains;
+      return upCopies >= 1 && (upCopies - 1 + milestoneEchoes + shopEchoes) >= targetChains;
     }
 
     function pull() {
+      milestoneTotalPulls++;
       const r1 = Math.random();
       let rarity;
       const rate5  = getRate5(pity5);
@@ -299,9 +321,36 @@ function simulate(p) {
       }
     }
 
+    // 處理聯動額外抽取獎勵里程碑
+    function processMilestones() {
+      if (!includeBonusRewards) return;
+      while (milestoneIdx < CYBERPUNK_MILESTONES.length && milestoneTotalPulls >= CYBERPUNK_MILESTONES[milestoneIdx].at) {
+        const m = CYBERPUNK_MILESTONES[milestoneIdx++];
+        if (m.pulls) {
+          for (let j = 0; j < m.pulls && !isDone(); j++) {
+            pull(); // pull() 會遞增 milestoneTotalPulls，外層 while 會連帶處理新里程碑
+            pullsThisTarget++;
+            bonusBannerPulls++;
+          }
+        }
+        if (m.echo) pendingMilestoneEchoes++;
+      }
+    }
+
+    // 將待用的里程碑回音頻段套用到當前目標（優先於珊瑚兌換）
+    function applyMilestoneEchoes() {
+      while (pendingMilestoneEchoes > 0 && upCopies >= 1 && (milestoneEchoes + shopEchoes) < 2) {
+        milestoneEchoes++;
+        pendingMilestoneEchoes--;
+        totalMilestoneEchoesUsed++;
+      }
+    }
+
     function buyEchoes() {
-      if (!autoEcho || upCopies < 1 || shopEchoes >= 2) return;
-      while (corals >= 360 && shopEchoes < 2) {
+      // 里程碑回音頻段優先，不需消耗珊瑚，無論 autoEcho 是否開啟都套用
+      if (includeBonusRewards) applyMilestoneEchoes();
+      if (!autoEcho || upCopies < 1 || (milestoneEchoes + shopEchoes) >= 2) return;
+      while (corals >= 360 && (milestoneEchoes + shopEchoes) < 2) {
         corals -= 360; coralForEchoes += 360; shopEchoes++; echoCount++;
       }
     }
@@ -310,6 +359,7 @@ function simulate(p) {
       if (!autoPull || corals < 8 || isDone()) return false;
       corals -= 8; coralForPulls += 8;
       pull();
+      processMilestones();
       return true;
     }
 
@@ -321,7 +371,7 @@ function simulate(p) {
           buyEchoes();
           if (isDone()) break;
           // echoFirst：已有角色且尚未兌換滿 2 次回音頻段時，強制存珊瑚不換抽
-          const savingForEcho = autoEcho && upCopies >= 1 && shopEchoes < 2;
+          const savingForEcho = autoEcho && upCopies >= 1 && (milestoneEchoes + shopEchoes) < 2;
           if (!savingForEcho) {
             if (buyOnePull()) { pullsThisTarget++; changed = true; }
           }
@@ -338,6 +388,7 @@ function simulate(p) {
     while (!isDone() && pullsThisTarget < MAX) {
       pull();
       pullsThisTarget++;
+      processMilestones();
       applyActions();
     }
 
@@ -345,11 +396,11 @@ function simulate(p) {
     totalPulls += pullsThisTarget;
   }
 
-  return { pulls: totalPulls, coralForEchoes, echoCount, coralForPulls, totalCoralsEarned, pullsPerTarget };
+  return { pulls: totalPulls, coralForEchoes, echoCount, coralForPulls, totalCoralsEarned, pullsPerTarget, bonusBannerPulls, milestoneEchoesUsed: totalMilestoneEchoesUsed };
 }
 
 function runSim(params, iters = 100000) {
-  let sumPulls = 0, sumEchoes = 0, sumEchoCount = 0, sumPullCoral = 0, sumEarned = 0;
+  let sumPulls = 0, sumEchoes = 0, sumEchoCount = 0, sumPullCoral = 0, sumEarned = 0, sumBonusPulls = 0, sumMilestoneEchoes = 0;
   const arr = new Int32Array(iters);
   const sumPerTarget = new Array(params.targets.length).fill(0);
 
@@ -360,6 +411,8 @@ function runSim(params, iters = 100000) {
     sumEchoCount  += r.echoCount;
     sumPullCoral  += r.coralForPulls;
     sumEarned     += r.totalCoralsEarned;
+    sumBonusPulls     += r.bonusBannerPulls;
+    sumMilestoneEchoes += r.milestoneEchoesUsed;
     arr[i]         = r.pulls;
     r.pullsPerTarget.forEach((p, ti) => { sumPerTarget[ti] += p; });
   }
@@ -375,6 +428,8 @@ function runSim(params, iters = 100000) {
     avgEchoCount:    sumEchoCount  / iters,
     avgPullCorals:   sumPullCoral  / iters,
     avgEarnedCorals: sumEarned    / iters,
+    avgBonusPulls:        sumBonusPulls     / iters,
+    avgMilestoneEchoes:   sumMilestoneEchoes / iters,
     avgPerTarget:    sumPerTarget.map(s => s / iters),
     ...pcts,
   };
@@ -401,6 +456,7 @@ function saveSettings() {
     autoPulls: document.getElementById('auto-pulls').checked,
     coralPriority: document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
     cyberpunkMode: document.getElementById('cyberpunk-mode').checked,
+    includeBonusRewards: document.getElementById('include-bonus-rewards').checked,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -445,12 +501,25 @@ function loadSettings() {
   }
   if (data.cyberpunkMode !== undefined) {
     document.getElementById('cyberpunk-mode').checked = data.cyberpunkMode;
+    document.getElementById('bonus-rewards-section').style.display = data.cyberpunkMode ? '' : 'none';
+  }
+  if (data.includeBonusRewards !== undefined) {
+    document.getElementById('include-bonus-rewards').checked = data.includeBonusRewards;
   }
 }
 
 // 在所有相關輸入加上自動儲存
 document.querySelectorAll('input, select').forEach(el => {
   el.addEventListener('change', saveSettings);
+});
+
+// ── 電馭叛客連動額外獎勵區塊顯示控制 ──────────────────────
+document.getElementById('cyberpunk-mode').addEventListener('change', function () {
+  const bonusSection = document.getElementById('bonus-rewards-section');
+  bonusSection.style.display = this.checked ? '' : 'none';
+  if (!this.checked) {
+    document.getElementById('include-bonus-rewards').checked = false;
+  }
 });
 
 // ── 優先順序顯示控制 ──────────────────────────────────────
@@ -504,6 +573,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
   });
 
   const cyberpunkMode = document.getElementById('cyberpunk-mode').checked;
+  const includeBonusRewards = document.getElementById('include-bonus-rewards').checked;
   const params = {
     pity5,
     pity4,
@@ -521,6 +591,7 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     std4Copies,
     up4StarIndices: [...up4Selected],
     cyberpunkMode,
+    includeBonusRewards,
   };
 
   const btn = document.getElementById('calculate-btn');
@@ -568,10 +639,15 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="coral-lbl">抽卡過程獲取</span>
           <span class="coral-val">${Math.round(res.avgEarnedCorals)} 個</span>
         </div>
-        <div class="coral-row"">
-          <span class="coral-lbl">兌換 5 星 UP 回音頻段</span>
+        <div class="coral-row">
+          <span class="coral-lbl">兌換 5 星 UP 回音頻段（珊瑚購買）</span>
           <span class="coral-val">${Math.round(res.avgEchoCorals)} 個（約 ${avgEchoTimes} 次）</span>
         </div>
+        ${res.avgMilestoneEchoes > 0 ? `
+        <div class="coral-row">
+          <span class="coral-lbl">里程碑獎勵回音頻段（免費）</span>
+          <span class="coral-val">約 ${res.avgMilestoneEchoes.toFixed(2)} 次</span>
+        </div>` : ''}
         <div class="coral-row">
           <span class="coral-lbl">兌換浮金波紋</span>
           <span class="coral-val">${Math.round(res.avgPullCorals)} 個（約 ${avgPullBuys} 抽）</span>
@@ -587,12 +663,23 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
       </div>
       ${(() => {
         const avgPulls = Math.round(res.avg);
-        const needAfterLustrous = Math.max(0, avgPulls - initLustrous);
+        const avgBonusPulls = Math.round(res.avgBonusPulls || 0);
+        const paidPulls = Math.max(0, avgPulls - avgBonusPulls);
+        const needAfterLustrous = Math.max(0, paidPulls - initLustrous);
         const astriteNeeded = needAfterLustrous * 160;
         const remainAstrites = Math.max(0, astriteNeeded - initAstrites);
         return `
       <h3>抽卡資源統計</h3>
       <div class="coral-table">
+        ${avgBonusPulls > 0 ? `
+        <div class="coral-row">
+          <span class="coral-lbl">聯動額外獎勵捕夢波紋（里程碑獎勵）</span>
+          <span class="coral-val">約 ${avgBonusPulls} 抽</span>
+        </div>
+        <div class="coral-row">
+          <span class="coral-lbl">扣除里程碑獎勵後實際需自行抽取</span>
+          <span class="coral-val">${paidPulls} 抽</span>
+        </div>` : ''}
         <div class="coral-row">
           <span class="coral-lbl">初始持有浮金波紋</span>
           <span class="coral-val">${initLustrous} 抽</span>
