@@ -370,9 +370,9 @@ function simulate(p) {
         if (echoFirst) {
           buyEchoes();
           if (isDone()) break;
-          // echoFirst：已有角色且尚未兌換滿 2 次回音頻段時，強制存珊瑚不換抽
-          const savingForEcho = autoEcho && upCopies >= 1 && (milestoneEchoes + shopEchoes) < 2;
-          if (!savingForEcho) {
+          // 商店仍有回音頻段可購買（名額未滿且開啟自動兌換）時，不允許花珊瑚換波紋
+          const noEchoToBuy = !autoEcho || (milestoneEchoes + shopEchoes) >= 2;
+          if (noEchoToBuy) {
             if (buyOnePull()) { pullsThisTarget++; changed = true; }
           }
         } else {
