@@ -41,12 +41,12 @@
     <div class="cyberpunk-toggle">
       <label class="checkbox-label">
         <input type="checkbox" id="cyberpunk-mode">
-        套用電馭叛客連動規則（角色池與武器池皆改用幻夢珊瑚，各項獲取量調整，波紋改為捕夢波紋）
+        套用電馭叛客連動規則（影響珊瑚獲取量，請將一般武器/角色池與連動武器/角色池分開計算）
       </label>
       <div id="bonus-rewards-section" style="display:none; padding-left:24px; margin-top:6px;">
         <label class="checkbox-label">
           <input type="checkbox" id="include-bonus-rewards">
-          將聯動額外抽取獎勵加入計算（角色池與武器池抽數合併計算里程碑；20/40/80/120/200/280/360/420 抽獲得額外捕夢波紋；160/420 抽獲得回音頻段。捕夢波紋與回音頻段僅角色池可用）
+          將聯動額外抽取獎勵加入計算（角色池與武器池抽數合併計算里程碑；20/40/80/120/200/280/360 抽獲得額外捕夢波紋；160/420 抽獲得回音頻段。捕夢波紋與回音頻段僅角色池可用）
         </label>
       </div>
     </div>
@@ -185,7 +185,9 @@
   <div class="card" id="results">
     <h2>計算結果</h2>
     <div id="results-content"></div>
-    <p class="result-note">以上數值為 100,000 次模擬的期望值，實際結果因隨機性而異。</p>
+    <p class="result-note">以上數值為 100,000 次模擬的平均值，實際結果因隨機性而異。</p>
+    <p class="result-note">當統計值與某個物品的兌換單位數不符時，代表實際結果可能優於/劣於期望值。</p>
+    <p class="result-note">(例如當「兌換 5 星 UP 回音頻段（珊瑚購買）」顯示「286 個（約 1 次）」時，代表實際抽取時可能不用兌換該回音頻段即可達成目標)</p>
   </div>
 
 </div>
