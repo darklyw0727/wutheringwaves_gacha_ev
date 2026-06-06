@@ -243,40 +243,6 @@ select option { background: #0e1523; }
 }
 .bulk-btn:hover { background: #102540; border-color: #4fc3f7; }
 
-.priority-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  background: #090f1c;
-  border: 1px solid #1c2d46;
-  border-radius: 8px;
-  margin-top: 4px;
-  transition: opacity 0.2s;
-}
-.priority-group.disabled { opacity: 0.35; pointer-events: none; }
-.priority-group > .priority-label {
-  font-size: 0.78rem;
-  color: #5a7090;
-  margin-bottom: 2px;
-}
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: #9ab8d0;
-  cursor: pointer;
-  user-select: none;
-}
-.radio-label input[type="radio"] {
-  accent-color: #4fc3f7;
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
 /* Hint text */
 .hint-inline {
   display: block;

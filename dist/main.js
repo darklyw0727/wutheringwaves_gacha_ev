@@ -218,7 +218,6 @@ function simulate(p) {
   let corals            = p.initialCorals;
   let coralForEchoes    = 0;
   let echoCount         = 0;
-  let coralForPulls     = 0;
   let totalCoralsEarned = 0;
   let totalPulls        = 0;
   const pullsPerTarget  = [];
@@ -229,8 +228,6 @@ function simulate(p) {
   const nonUp4Idx = STD_4STAR.map((_, i) => i).filter(i => !up4Idx.includes(i));
 
   const autoEcho   = p.autoUseEchoes;
-  const autoPull   = p.autoUsePulls;
-  const echoFirst  = p.coralPriority === 'echo';
   const cyberpunk  = p.cyberpunkMode;
   const includeBonusRewards = p.cyberpunkMode && p.includeBonusRewards;
 
@@ -355,31 +352,9 @@ function simulate(p) {
       }
     }
 
-    function buyOnePull() {
-      if (!autoPull || corals < 8 || isDone()) return false;
-      corals -= 8; coralForPulls += 8;
-      pull();
-      processMilestones();
-      return true;
-    }
-
     function applyActions() {
-      let changed = true;
-      while (changed && !isDone()) {
-        changed = false;
-        if (echoFirst) {
-          buyEchoes();
-          if (isDone()) break;
-          // 商店仍有回音頻段可購買（名額未滿且開啟自動兌換）時，不允許花珊瑚換波紋
-          const noEchoToBuy = !autoEcho || (milestoneEchoes + shopEchoes) >= 2;
-          if (noEchoToBuy) {
-            if (buyOnePull()) { pullsThisTarget++; changed = true; }
-          }
-        } else {
-          if (buyOnePull()) { pullsThisTarget++; changed = true; }
-          buyEchoes();
-        }
-      }
+      if (isDone()) return;
+      buyEchoes();
     }
 
     applyActions();
@@ -396,11 +371,11 @@ function simulate(p) {
     totalPulls += pullsThisTarget;
   }
 
-  return { pulls: totalPulls, coralForEchoes, echoCount, coralForPulls, totalCoralsEarned, pullsPerTarget, bonusBannerPulls, milestoneEchoesUsed: totalMilestoneEchoesUsed };
+  return { pulls: totalPulls, coralForEchoes, echoCount, totalCoralsEarned, pullsPerTarget, bonusBannerPulls, milestoneEchoesUsed: totalMilestoneEchoesUsed };
 }
 
 function runSim(params, iters = 100000) {
-  let sumPulls = 0, sumEchoes = 0, sumEchoCount = 0, sumPullCoral = 0, sumEarned = 0, sumBonusPulls = 0, sumMilestoneEchoes = 0;
+  let sumPulls = 0, sumEchoes = 0, sumEchoCount = 0, sumEarned = 0, sumBonusPulls = 0, sumMilestoneEchoes = 0;
   const arr = new Int32Array(iters);
   const sumPerTarget = new Array(params.targets.length).fill(0);
 
@@ -409,7 +384,6 @@ function runSim(params, iters = 100000) {
     sumPulls      += r.pulls;
     sumEchoes     += r.coralForEchoes;
     sumEchoCount  += r.echoCount;
-    sumPullCoral  += r.coralForPulls;
     sumEarned     += r.totalCoralsEarned;
     sumBonusPulls     += r.bonusBannerPulls;
     sumMilestoneEchoes += r.milestoneEchoesUsed;
@@ -426,7 +400,6 @@ function runSim(params, iters = 100000) {
     avg:             sumPulls      / iters,
     avgEchoCorals:   sumEchoes     / iters,
     avgEchoCount:    sumEchoCount  / iters,
-    avgPullCorals:   sumPullCoral  / iters,
     avgEarnedCorals: sumEarned    / iters,
     avgBonusPulls:        sumBonusPulls     / iters,
     avgMilestoneEchoes:   sumMilestoneEchoes / iters,
@@ -453,8 +426,6 @@ function saveSettings() {
     initialLustrousTides: document.getElementById('initial-lustrous-tides').value,
     moneyRate: document.getElementById('money-rate').value,
     autoEcho: document.getElementById('auto-echo').checked,
-    autoPulls: document.getElementById('auto-pulls').checked,
-    coralPriority: document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
     cyberpunkMode: document.getElementById('cyberpunk-mode').checked,
     includeBonusRewards: document.getElementById('include-bonus-rewards').checked,
   };
@@ -494,11 +465,6 @@ function loadSettings() {
   if (data.initialLustrousTides !== undefined) document.getElementById('initial-lustrous-tides').value = data.initialLustrousTides;
   if (data.moneyRate !== undefined) document.getElementById('money-rate').value = data.moneyRate;
   if (data.autoEcho !== undefined) document.getElementById('auto-echo').checked = data.autoEcho;
-  if (data.autoPulls !== undefined) document.getElementById('auto-pulls').checked = data.autoPulls;
-  if (data.coralPriority) {
-    const el = document.querySelector(`input[name="coral-priority"][value="${data.coralPriority}"]`);
-    if (el) el.checked = true;
-  }
   if (data.cyberpunkMode !== undefined) {
     document.getElementById('cyberpunk-mode').checked = data.cyberpunkMode;
     document.getElementById('bonus-rewards-section').style.display = data.cyberpunkMode ? '' : 'none';
@@ -522,17 +488,7 @@ document.getElementById('cyberpunk-mode').addEventListener('change', function ()
   }
 });
 
-// ── 優先順序顯示控制 ──────────────────────────────────────
 const autoEchoEl  = document.getElementById('auto-echo');
-const autoPullEl  = document.getElementById('auto-pulls');
-const priorityGrp = document.getElementById('priority-group');
-
-function updatePriorityGroup() {
-  const both = autoEchoEl.checked && autoPullEl.checked;
-  priorityGrp.classList.toggle('disabled', !both);
-}
-autoEchoEl.addEventListener('change', updatePriorityGroup);
-autoPullEl.addEventListener('change', updatePriorityGroup);
 
 // ── 計算按鈕 ──────────────────────────────────────────────
 document.getElementById('calculate-btn').addEventListener('click', () => {
@@ -585,8 +541,6 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     })),
     initialCorals:  initCor,
     autoUseEchoes:  autoEchoEl.checked,
-    autoUsePulls:   autoPullEl.checked,
-    coralPriority:  document.querySelector('input[name="coral-priority"]:checked')?.value ?? 'echo',
     std5Copies,
     std4Copies,
     up4StarIndices: [...up4Selected],
@@ -603,14 +557,13 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
     const res = runSim(params, 100000);
 
     const avgEchoTimes = Math.round(res.avgEchoCount);
-    const avgPullBuys  = Math.round(res.avgPullCorals  /   8);
-    const totalUsedAvg = Math.round(res.avgEchoCorals + res.avgPullCorals);
+    const totalUsedAvg = Math.round(res.avgEchoCorals);
     const multiTarget  = upTargets.length > 1;
 
     document.getElementById('results-content').innerHTML = `
       <div class="result-hero">
         <div class="big">${Math.round(res.avg)}</div>
-        <div class="unit">預期總抽數${multiTarget ? `（${upTargets.length} 個目標合計，含珊瑚兌換所得的抽數）` : '（含珊瑚兌換所得的抽數）'}</div>
+        <div class="unit">預期總抽數${multiTarget ? `（${upTargets.length} 個目標合計）` : ''}</div>
       </div>
       ${multiTarget ? `
       <h3>各目標預期抽數</h3>
@@ -648,10 +601,6 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="coral-lbl">里程碑獎勵回音頻段（免費）</span>
           <span class="coral-val">約 ${res.avgMilestoneEchoes.toFixed(2)} 次</span>
         </div>` : ''}
-        <div class="coral-row">
-          <span class="coral-lbl">兌換浮金波紋</span>
-          <span class="coral-val">${Math.round(res.avgPullCorals)} 個（約 ${avgPullBuys} 抽）</span>
-        </div>
         <div class="coral-row">
           <span class="coral-lbl">總共使用珊瑚</span>
           <span class="coral-val">${totalUsedAvg} 個</span>
@@ -714,4 +663,3 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
 
 // ── 載入已儲存的設定 ──────────────────────────────────────
 loadSettings();
-updatePriorityGroup();
