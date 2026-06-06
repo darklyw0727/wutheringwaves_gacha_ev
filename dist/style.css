@@ -371,6 +371,21 @@ select option { background: #0e1523; }
 .coral-val { color: #ffd54f; font-weight: 600; }
 .coral-val.total-val { color: #ff9800; font-size: 0.95rem; }
 
+.coral-row.two-col {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.coral-row.two-col .coral-val { text-align: right; }
+.coral-row.two-col.col-head { padding-bottom: 4px; }
+.coral-row.col-head .col-title {
+  text-align: right;
+  color: #7a92b0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .pct-table {
   background: #090f1c;
   border: 1px solid #1c2d46;

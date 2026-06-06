@@ -616,7 +616,15 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
         const paidPulls = Math.max(0, avgPulls - avgBonusPulls);
         const needAfterLustrous = Math.max(0, paidPulls - initLustrous);
         const astriteNeeded = needAfterLustrous * 160;
-        const remainAstrites = Math.max(0, astriteNeeded - initAstrites);
+
+        // 剩餘珊瑚可兌換的浮金波紋數（每 8 珊瑚換 1 抽）
+        const remainCorals = initCor + Math.round(res.avgEarnedCorals) - totalUsedAvg;
+        const coralTides = Math.max(0, Math.floor(remainCorals / 8));
+        const needAfterCoral = Math.max(0, needAfterLustrous - coralTides);
+
+        // 左欄：不使用珊瑚兌換波紋；右欄：使用珊瑚兌換波紋
+        const remainAstrites  = Math.max(0, needAfterLustrous * 160 - initAstrites);
+        const remainAstrites2 = Math.max(0, needAfterCoral    * 160 - initAstrites);
         return `
       <h3>抽卡資源統計</h3>
       <div class="coral-table">
@@ -638,17 +646,32 @@ document.getElementById('calculate-btn').addEventListener('click', () => {
           <span class="coral-val total-val">${needAfterLustrous} 抽（需 ${astriteNeeded.toLocaleString()} 星聲）</span>
         </div>
         <div class="coral-row">
+          <span class="coral-lbl">使用「剩餘珊瑚」可兌換浮金波紋數</span>
+          <span class="coral-val">${coralTides} 抽</span>
+        </div>
+        <div class="coral-row total">
+          <span class="coral-lbl">扣除使用珊瑚兌換之浮金波紋後預計還需</span>
+          <span class="coral-val total-val">${needAfterCoral} 抽（需 ${(needAfterCoral * 160).toLocaleString()} 星聲）</span>
+        </div>
+        <div class="coral-row">
           <span class="coral-lbl">初始持有星聲</span>
           <span class="coral-val">${initAstrites.toLocaleString()} 個</span>
         </div>
-        <div class="coral-row total">
+        <div class="coral-row two-col col-head">
+          <span class="coral-lbl"></span>
+          <span class="col-title">不使用珊瑚兌換波紋</span>
+          <span class="col-title">使用珊瑚兌換波紋</span>
+        </div>
+        <div class="coral-row total two-col">
           <span class="coral-lbl">扣除初始星聲後預計還需</span>
           <span class="coral-val total-val">${remainAstrites.toLocaleString()} 星聲</span>
+          <span class="coral-val total-val">${remainAstrites2.toLocaleString()} 星聲</span>
         </div>
         ${remainAstrites > 0 ? `
-        <div class="coral-row total">
+        <div class="coral-row total two-col">
           <span class="coral-lbl">換算真錢約需（依設定匯率 1:${moneyRate.toFixed(2)}）</span>
           <span class="coral-val total-val">${Math.ceil(remainAstrites / moneyRate).toLocaleString()} 元</span>
+          <span class="coral-val total-val">${Math.ceil(remainAstrites2 / moneyRate).toLocaleString()} 元</span>
         </div>` : ''}
       </div>`;
       })()}
